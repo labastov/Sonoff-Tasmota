@@ -20,6 +20,11 @@
 #ifndef _SONOFF_H_
 #define _SONOFF_H_
 
+#define USE_DHT                             // Default DHT11 sensor needs no external library
+#define USE_ENERGY_SENSOR                   // Use energy sensors (+14k code)
+#define USE_HLW8012                         // Use energy sensor for Sonoff Pow and WolfBlitz
+#define USE_CSE7766                         // Use energy sensor for Sonoff S31 and Pow R2
+
 /*********************************************************************************************\
  * Power Type
 \*********************************************************************************************/
@@ -75,6 +80,10 @@ typedef unsigned long power_t;              // Power (Relay) type
 //#define PWM_FREQ               1000         // 100..1000 Hz led refresh
 //#define PWM_FREQ               910          // 100..1000 Hz led refresh (iTead value)
 #define PWM_FREQ               880          // 100..1000 Hz led refresh (BN-SZ01 value)
+#define PWM_MAX                4000         // [PWM_MAX] Maximum frequency - Default: 4000
+#define PWM_MIN                100          // [PWM_MIN] Minimum frequency - Default: 100
+                                            //    For Dimmers use double of your mains AC frequecy (100 for 50Hz and 120 for 60Hz)
+                                            //    For Controlling Servos use 50 and also set PWM_FREQ as 50 (DO NOT USE THESE VALUES FOR DIMMERS)
 
 #define DEFAULT_POWER_DELTA    80           // Power change percentage
 #define MAX_POWER_HOLD         10           // Time in SECONDS to allow max agreed power
@@ -135,8 +144,9 @@ typedef unsigned long power_t;              // Power (Relay) type
 #define NEO_GRBW               6            // Neopixel GRBW leds
 
 #define MQTT_PUBSUBCLIENT      1            // Mqtt PubSubClient library
-#define MQTT_TASMOTAMQTT       2            // Mqtt TasmotaMqtt library based on esp-mqtt-arduino
-#define MQTT_ESPMQTTARDUINO    3            // Mqtt esp-mqtt-arduino library by Ingo Randolf
+#define MQTT_TASMOTAMQTT       2            // Mqtt TasmotaMqtt library based on esp-mqtt-arduino - soon obsolete
+#define MQTT_ESPMQTTARDUINO    3            // Mqtt esp-mqtt-arduino library by Ingo Randolf - obsolete but define is present for debugging purposes
+#define MQTT_ARDUINOMQTT       4            // Mqtt arduino-mqtt library by Joel Gaehwiler (https://github.com/256dpi/arduino-mqtt)
 
 // Sunrise and Sunset DawnType
 #define DAWN_NORMAL            -0.8333

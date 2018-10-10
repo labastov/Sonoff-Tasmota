@@ -1,8 +1,25 @@
-/* 6.2.1.10 20180930
+/* 6.2.1.13 20181008
+ * Change default Mqtt client library from PubSubClient to non-blocking ArduinoMqtt by Joel Gaehwiler
+ * Add command WebRefresh 1000..10000 to control web page refresh in milliseconds. Default is 2345
+ *
+ * 6.2.1.12 20181007
+ * Fix Shelly1 switchmode 3 and 4 when using pushbutton (#3989)
+ * Add support for CSL Aplic WDP 303075 Power Socket with Energy Monitoring (#3991, #3996)
+ *
+ * 6.2.1.11 20181002
+ * Remove support for MQTT Client based on esp-mqtt-arduino by #define MQTT_LIBRARY_TYPE MQTT_ESPMQTTARDUINO
+ * Add support for MQTT Client based on lwmqtt to be selected by #define MQTT_LIBRARY_TYPE MQTT_ARDUINOMQTT
+ * Change MQTT_ARDUINOMQTT command timeout from 1 to 10 seconds
+ * Add Hebrew language file (#3960)
+ * Fix exception when wrong Domoticz JSON message is received (#3963)
+ *
+ * 6.2.1.10 20180930
  * Add command RGBWWTable to support color calibration (#3933)
  * Add support for Michael Haustein ESP Switch
  * Add support for EXS Relay V5.0 (#3810)
  * Fix timer offset -00:00 causing 12:00 hour offset (#3923)
+ * Add support for OBI Power Socket (#1988, #3944)
+ * Add support for Teckin Power Socket with Energy Monitoring (#3950)
  *
  * 6.2.1.9 20180928
  * Add Apparent Power and Reactive Power to Energy Monitoring devices (#251)

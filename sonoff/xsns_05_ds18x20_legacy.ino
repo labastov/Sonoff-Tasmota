@@ -174,6 +174,7 @@ void Ds18x20Type(uint8_t sensor)
   }
 }
 
+const char LVA_HTTP_SNS_TEMP[] PROGMEM = "%s{s}%s{m}%s&deg;%c{e}";
 void Ds18x20Show(boolean json)
 {
   char temperature[10];
@@ -241,7 +242,7 @@ void Ds18x20Show(boolean json)
         snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_SNS_TEMP, mqtt_data, stemp, temperature, TempUnit());
 #else
         snprintf_P(stemp, sizeof(stemp), PSTR("%s"), Ds18x20Addresses(i).c_str());
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_SNS_TEMP, mqtt_data, stemp, temperature, TempUnit());
+        snprintf_P(mqtt_data, sizeof(mqtt_data), LVA_HTTP_SNS_TEMP, mqtt_data, stemp, temperature, TempUnit());
 #endif
 //  --> LVA
 

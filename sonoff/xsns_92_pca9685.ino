@@ -12,7 +12,7 @@ version 0.1
 
 
 #ifdef USE_I2C
-#ifdef USE_PCA9685_LVA
+#ifdef USE_PCA9685_LVA_OLD
 #define XSNS_92 92
 
 #include <Adafruit_PWMServoDriver.h>

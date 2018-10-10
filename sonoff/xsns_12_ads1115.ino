@@ -2,7 +2,6 @@
   xsns_12_ads1115_ada.ino - ADS1115 A/D Converter support for Sonoff-Tasmota
 
   Copyright (C) 2018  Theo Arends
-UPDATING LVA
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,7 +16,7 @@ UPDATING LVA
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _LVA
+
 #ifdef USE_I2C
 #ifdef USE_ADS1115
 /*********************************************************************************************\
@@ -191,22 +190,11 @@ void Ads1115Show(boolean json)
           stemp[0] = '\0';
         }
         dsxflg++;
-#ifndef _LVA // <- LVA
-        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s%s\"" D_JSON_ANALOG_INPUT "%d\":%d"), mqtt_data, stemp, i, adc_value);
-#else
-        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s%s\"A%d\":%d"), mqtt_data, stemp, i, adc_value);
-#endif //  -> LVA
         snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s%s\"A%d\":%d"), mqtt_data, stemp, i, adc_value);
         strlcpy(stemp, ",", sizeof(stemp));
 #ifdef USE_WEBSERVER
-      } 
-      else
-      {
-  #ifndef _LVA // <- LVA
+      } else {
         snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_SNS_ANALOG, mqtt_data, "ADS1115", i, adc_value);
-  #else
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_SNS_ANALOG, mqtt_data, "ADS1115", i, adc_value);
-  #endif //  -> LVA
 #endif  // USE_WEBSERVER
       }
     }
@@ -248,4 +236,3 @@ boolean Xsns12(byte function)
 
 #endif  // USE_ADS1115
 #endif  // USE_I2C
-#endif // LVA

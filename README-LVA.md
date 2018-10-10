@@ -1,17 +1,18 @@
 # Модернизированный [Sonoff-Tasmota](https://github.com/arendst/Sonoff-Tasmota)
-текущий номер релиза Sonoff-Tasmota 6.2.1.8 20180926
+текущий номер релиза Sonoff-Tasmota 6.2.1.11 20191002
+чем отличается от оригинала:
+
+1. _xsns_05_ds18x20_legacy.ino_ - увеличено количество датчиков до 24. Cокращены поля вывода MQTT, т.к. не хватало длины стандартного MQTT сообщения
+2. добавлена поддержка нескольких ADS1115 (для автоматизации требуется 16 ЦАП - обработка обратной связи с приводов воздушных заслонок)
+3. на базе драйвера _xdrv_15_pca9685.ino_ сделан сенсор  _xsns_33_pca9685_lva.ino_ в нем добавлен вывод информации на WEBGUI
+
 Прошивка обновляется по мере наличия свободного времени.
 
 Для облегчения поддержки вносятся минимальные изменения в оригинальные файлы и добавляются новые.
 
 Необходимость данного форка вызвана тем, что для автоматизации дома на базе **OpenHub** потребовалось изменить некоторые модули и написать новые модули для поддержки новых устройств.
 Основные задачи:
-* увеличено количество датчиков DS18B20 на одном устройстве. надо добавить поддержку двех ветвей дастчиков на одном устройстве.
-* сокращены поля вывода MQTT, т.к. не хватало длины стандартного MQTT сообщения
-* добавлена поддержка нескольких ADS1115 (для автоматизации требуется 16 ЦАП - обработка обратной связи с приводов воздушных заслонок)
-* добавлена поддержка расширителя портов MCP23017 (в последней версии _**Sonoff-Tasmota**_) появилась поддержка. надо разбиратся.
-* добавлена поддержка PWM драйвеа PCA9685 (тоже штатно появилась поддержка)
----
+* DS18B20. надо добавить поддержку двех ветвей дастчиков на одном устройстве.
 * (надо добавить конвертер MODBUS RTU - MQTT для Danfoss FC51)
 * (надо добавить конвертер MODBUS RTU - MQTT для счетчика Меркурий 231)
 
@@ -22,8 +23,6 @@
 **Список измененных файлов и причина их изменения:**
 
 * ***patformio. ini*** - отключены лишние варианты сборок, в команде сборки включен ключ оределения ***_LVA*** активизирующий все мои изменения, настроен ком.порт.
-
-* ***sanoff/i18n.h***  	- сокращен вывод сообщений MQTT. надо переделать.
 
 * ***sanoff/xdrv_interface.ino***  (был добавлен дебуг вызова модулей, требуется при отладке собственных модулей)
 
@@ -76,31 +75,23 @@ ___
 Сравнивая эти модули, думаю самым аккуратно написанным является  **xsns_23_ sdm120 .ino**, берем его за основу для Danfoss FC51
 текущая основная поблема, у меня max485, она требует переключения прием/передача, надо дергать третью ногу намомент передачи.
 в приципе бибилотеку TasmotaSerial не надо, достаточно перед записью в порт опускать ногу, а по окончании поднимать.
-осталосб разобратся как дергать нагами.
+осталось разобратся как дергать нагами.
  irsend = new IRsend(pin[GPIO_IRSEND]); // an IR led is at GPIO_IRSEND
- определение пина  брать надо от сюда  _sonoff_template.h_  "enum UserSelectablePins", только проверять по номеру из вебинтерфейса, что он доступен для определения.
+ _sonoff_template.h_ :
+ 1. в _enum UserSelectablePins_ добавляем название переменной (GPIO_MODBUS_TX, GPIO_MODBUS_RX, GPIO_MODBUS_TX_ENABLE,)
+ 2. _const char kSensorNames[] PROGMEM_ добавляем имя шаблона во ФЛЕШ памяти для отображаемого наименования пина (D_SENSOR_MODBUS_TX "|" D_SENSOR_MODBUS_RX "|" D_SENSOR_MODBUS_TX_ENABLE "|")
+ 3. _const uint8_t kGpioNiceList[GPIO_SENSOR_END] PROGMEM_ добавляем название переменной (GPIO_MODBUS_TX, GPIO_MODBUS_RX, GPIO_MODBUS_TX_ENABLE,)
+ 4. в языковом файле объявялем шаблон (
+    >#define D_SENSOR_MODBUS_TX "MODBUS Tx"
+    >#define D_SENSOR_MODBUS_RX "MODBUS Rx"
+    >#define D_SENSOR_MODBUS_TX_ENABLE "MODBUS ENABLE")
+соединения на время отладки
+esp D6 -> TX -> mcp D6
+esp D7 -> RX -> mcp D7
+esp D5 -> TX_E ->mcp D5
 
-
----
-Добавились функции вызова модулей файл xdrv_interface.ino
-
- * Function call to all xdrv
- *
- * FUNC_PRE_INIT
- * FUNC_INIT
- * FUNC_LOOP
- * FUNC_MQTT_SUBSCRIBE
- * FUNC_MQTT_INIT
- * return FUNC_MQTT_DATA
- * return FUNC_COMMAND
- * FUNC_SET_POWER
- * FUNC_SHOW_SENSOR
- * FUNC_EVERY_SECOND
- * FUNC_EVERY_50_MSECOND
- * FUNC_EVERY_100_MSECOND
- * FUNC_EVERY_250_MSECOND
- * FUNC_RULES_PROCESS
- * FUNC_FREE_MEM
+пРИМЕР ВСТАВКИ КАРТИНКИ
+<img src="https://github.com/arendst/arendst.github.io/blob/master/media/sonoffbasic.jpg" width="250" align="right" />
 
 4.разбираем как работает _**Sonoff-Tasmota**_ (шпаргалка, чтобы запомнить)
 4.1 - сначала обрабатывается _sonoff.ino_, где включается _user_config.h_ и т.д.
@@ -146,6 +137,7 @@ PROGRAM: [===       ]  33.2% (used 347915 bytes from 1048576 bytes)
 
 Взято от [сюда](https://github.com/arendst/Sonoff-Tasmota/wiki/MCP23008-MCP23017).
 
+*на WebGui выводятя только потры которые сконфигурированы на OUT !!!*
 Формат команды в консоле (как в MQTT пока не понятно) 
 
 спросить состояние пина D9 
@@ -212,26 +204,15 @@ _sensor29 reset5_   // Reset all pins to OUTPUT mode (if enabled by #define USE_
 >sensor29 0,6,0  // Configure pin 0 as INVERTED OUTPUT and default to ON on reset/power-up
 
 >sensor29 0,6,1  // Configure pin 0 as INVERTED OUTPUT and default to OFF on reset/power-up
-
 >sensor29 9,5,0 - пин на OUT по умолчанию выключен
-
 >sensor29 9,5,1 - пин на OUT по умолчанию включен
-
 >sensor29 9,ON   // Turn pin ON (HIGH if pinmode 5 or LOW if pinmode 6(inverted))
-
 >sensor29 9,OFF  // Turn pin OFF (LOW if pinmode 5 or HIGH if pinmode 6(inverted))
-
 >sensor29 9,T    // Toggle the current state of pin from ON to OFF, or OFF to ON
-
-
 >sensor29 reset2
-
 >sensor29 9,5,0
-
 >sensor29 9,ON
-
 >sensor29 9,OFF
-
 >sensor29 9,T
 
 -----
@@ -269,3 +250,12 @@ sensor33 pwm,15,4095
 sensor33 pwm,13,4096
 sensor33 pwm,14,40
 
+# FC51 Danfos
+
+Status Word 
+0103c417
+
+# особености лога в консоль
+Надо чтобы был установлен уровень ***LOG_LEVEL_INFO***
+>snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS inited"));
+>AddLog(LOG_LEVEL_INFO);

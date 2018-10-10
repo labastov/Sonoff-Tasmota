@@ -1,5 +1,5 @@
 /*
-  xsns_12_ads1115_ada.ino - ADS1115 A/D Converter support for Sonoff-Tasmota
+  xsns_12_ads1115_lva.ino - ADS1115 A/D Converter support for Sonoff-Tasmota
 
   Copyright (C) 2018  Theo Arends
 
@@ -20,7 +20,8 @@ UPDATING LVA
 */
 
 #ifdef USE_I2C
-#ifdef USE_ADS1115
+//#undef USE_ADS1115_LVA
+#ifdef USE_ADS1115_LVA
 /*********************************************************************************************\
  * ADS1115 - 4 channel 16BIT A/D converter
  *
@@ -116,7 +117,12 @@ CONFIG REGISTER
 #define ADS1115_REG_CONFIG_CQUE_4CONV   (0x0002)  // Assert ALERT/RDY after four conversions
 #define ADS1115_REG_CONFIG_CQUE_NONE    (0x0003)  // Disable the comparator and put ALERT/RDY in high state (default)
 
-#define ADS1115_DEVICES_MAX 4 // 0 don't found devices
+// #define ADS1115_DEVICES_MAX 4 // 0 don't found devices
+
+const char HTTP1_ADS1115[] PROGMEM = "%s{s}ADS1115_%d: A%d{m}%d{e}"; // {s} = <tr><th>, {m} = </th><td>, {e} = </td></tr>
+const char HTTP2_ADS1115[] PROGMEM = "%s{s}A%d{m}%d{e}"; // {s} = <tr><th>, {m} = </th><td>, {e} = </td></tr>
+
+//const char HTTP_SNS_ANALOG[] PROGMEM = "%s{s}%s " D_ANALOG_INPUT "%d{m}%d{e}";
 
 //uint8_t ads1115_type = 0; // непонял для чего возможно надо убрать
 
@@ -167,7 +173,9 @@ void Ads1115Detect()
 {
   uint16_t buffer;
   if (!ads1115_devices) {
-    Serial.println("Ads1115Detect start");
+    //Serial.println("Ads1115Detect start");
+    snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "Start detect ads1115"));
+    AddLog(LOG_LEVEL_INFO);
     //   return;
     // }
     //for (byte i = 0; i < sizeof(ads1115_addresses); i++) {
@@ -180,9 +188,10 @@ void Ads1115Detect()
           Ads1115StartComparator(ads1115_device[ads1115_devices], ii, ADS1115_REG_CONFIG_MODE_CONTIN);
         }
         //ads1115_type = 1;
-        snprintf_P(log_data, sizeof(log_data), S_LOG_I2C_FOUND_AT, "ADS1115", ads1115_device[ads1115_devices]);
-        AddLog(LOG_LEVEL_DEBUG);
-        //break;
+        //snprintf_P(log_data, sizeof(log_data), S_LOG_I2C_FOUND_AT, "ADS1115", ads1115_device[ads1115_devices]);
+        //Serial.println(log_data);
+        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "Detected ads1115_%d Adr:%d"), ads1115_devices, ads1115_device[ads1115_devices]);
+        AddLog(LOG_LEVEL_INFO);
       }
     }
   }
@@ -197,8 +206,8 @@ void Ads1115Show(boolean json) {
     byte dsxflg = 0;
     for (byte a = 1; a <= ads1115_devices; a++){
       for (byte i = 0; i < 4; i++) {
-        uint16_t adc_value;
-        if (json) {
+        uint16_t adc_value = Ads1115GetConversion(ads1115_device[a], i);
+                if (json) {
           if (!dsxflg  ) {
             snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"ADS1115\":{"), mqtt_data);
             stemp[0] = '\0';
@@ -207,9 +216,7 @@ void Ads1115Show(boolean json) {
             snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"ADS_%d\":{"), mqtt_data, a);
             stemp[0] = '\0';
           }
-          adc_value = Ads1115GetConversion(ads1115_device[a], i);
           snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s%s\"A%d\":%d"), mqtt_data, stemp, i, adc_value);
-
           if (i==3 && a == ads1115_devices){
             snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s}"), mqtt_data);
           } else if (i==3) {
@@ -220,9 +227,15 @@ void Ads1115Show(boolean json) {
           }
     #ifdef USE_WEBSERVER
         dsxflg++;
-        } else {
-            snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_SNS_ANALOG, mqtt_data, "ADS1115", i, adc_value);
-    #endif  // USE_WEBSERVER
+        } else {  //const char HTTP_ADS1115[] PROGMEM = "%s{s}%s%d A%d{m}%d{e}"; // {s} = <tr><th>, {m} = </th><td>, {e} = </td></tr>
+          //snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_ADS1115, mqtt_data, a, i, adc_value);
+          if (i==0) {
+            snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP1_ADS1115, mqtt_data, a, i, adc_value);
+          }
+          else {
+            snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP2_ADS1115, mqtt_data, i, adc_value);
+          }
+#endif  // USE_WEBSERVER
           }
         }
     }

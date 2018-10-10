@@ -73,7 +73,8 @@ PROGRAM: [====      ]  35.6% (used 373079 bytes from 1048576 bytes)
 //PROGRAM : [== == ] 35.8 % (used 375783 bytes from 1048576 bytes) +2k704
 //#define USE_DS18x20
 #define USE_I2C // автоматически она не включается
-#define USE_ADS1115 // для обратной связи приводов, мною доработанный родной дравер
+#define USE_ADS1115_LVA // для обратной связи приводов, мною доработанный родной дравер
+#define ADS1115_DEVICES_MAX 4 // сколько устройств ищем who many found devices
 
 //#define USE_MCP23017 // мой модуль, он умеет сам искать адрес 
 // управление портами de-icing, включать блок <-
@@ -84,10 +85,16 @@ PROGRAM: [====      ]  35.6% (used 373079 bytes from 1048576 bytes)
 // ->
 
 // PWM драйвер, над овключать обе опции
-#define USE_PCA9685
+#define USE_PCA9685_LVA
 #define USE_PCA9685_ADDR 0x41 // от 40 до 47 у меня на тесте распаянно на 41
-#define PCA9685_DEFAULT_FREQ 100
+#define USE_PCA9685_FREQ 100
 #define USE_PCA9685_DISPLAYOUTPUT
+
+#define USE_FC51 // остальное включать в user_config_override.
+#define FC51_1_ADDR 0x01 // MODBUS Adresess Danfos FC51 - 1 to 127 , 0 - circular
+#define FC51_2_ADDR 0x02 // MODBUS Adresess Danfos FC51 - 1 to 127 , 0 - circular
+#define FC51_3_ADDR 0x03 // MODBUS Adresess Danfos FC51 - 1 to 127 , 0 - circular
+#define FC51_DEVICES 3
 
 #endif //ROOF
 
