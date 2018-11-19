@@ -2210,8 +2210,9 @@ void RtcInit()
   BreakTime(utc_time, RtcTime);
   TickerRtc.attach(1, RtcSecond);
 }
-
-#ifndef USE_ADC_VCC
+// LVA
+#ifdef USE_ADC_VCC
+//#ifndef USE_ADC_VCC
 /*********************************************************************************************\
  * ADC support
 \*********************************************************************************************/

@@ -2,7 +2,7 @@
   xdrv_02_webserver.ino - webserver for Sonoff-Tasmota
 
   Copyright (C) 2018  Theo Arends
-
+// LVA EDIT
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -34,54 +34,57 @@ uint8_t *efm8bb1_update = NULL;
 enum UploadTypes { UPL_TASMOTA, UPL_SETTINGS, UPL_EFM8BB1 };
 
 const char HTTP_HEAD[] PROGMEM =
-  "<!DOCTYPE html><html lang=\"" D_HTML_LANGUAGE "\" class=\"\">"
-  "<head>"
-  "<meta charset='utf-8'>"
-  "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,user-scalable=no\"/>"
-  "<title>{h} - {v}</title>"
+    "<!DOCTYPE html><html lang=\"" D_HTML_LANGUAGE "\" class=\"\">"
+    "<head>"
+    "<meta charset='utf-8'>"
+    "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,user-scalable=no\"/>"
+    "<title>{h} - {v}</title>"
 
-  "<script>"
-  "var cn,x,lt,to,tp,pc='';"
-  "cn=180;"
-  "x=null;"                  // Allow for abortion
-  "function eb(s){"
-    "return document.getElementById(s);"  // Save code space
-  "}"
-  "function u(){"
-    "if(cn>=0){"
-      "eb('t').innerHTML='" D_RESTART_IN " '+cn+' " D_SECONDS "';"
-      "cn--;"
-      "setTimeout(u,1000);"
+    "<script>"
+    "var cn,x,lt,to,tp,pc='';"
+    "cn=180;"
+    "x=null;" // Allow for abortion
+    "function eb(s){"
+    "return document.getElementById(s);" // Save code space
     "}"
-  "}"
-  "function c(l){"
+    "function u(){"
+    "if(cn>=0){"
+    "eb('t').innerHTML='" D_RESTART_IN " '+cn+' " D_SECONDS "';"
+    "cn--;"
+    "setTimeout(u,1000);"
+    "}"
+    "}"
+    "function c(l){"
     "eb('s1').value=l.innerText||l.textContent;"
     "eb('p1').focus();"
-  "}"
-  "function la(p){"
+    "}"
+    "function la(p){"
     "var a='';"
     "if(la.arguments.length==1){"
-      "a=p;"
-      "clearTimeout(lt);"
+    "a=p;"
+    "clearTimeout(lt);"
     "}"
-    "if(x!=null){x.abort();}"    // Abort if no response within 2 seconds (happens on restart 1)
+    "if(x!=null){x.abort();}" // Abort if no response within 2 seconds (happens on restart 1)
     "x=new XMLHttpRequest();"
     "x.onreadystatechange=function(){"
-      "if(x.readyState==4&&x.status==200){"
-        "var s=x.responseText.replace(/{t}/g,\"<table style='width:100%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%'><div style='text-align:center;font-weight:\");"
-        "eb('l1').innerHTML=s;"
-      "}"
+    "if(x.readyState==4&&x.status==200){"
+    // LVA EDIT
+    //"var s=x.responseText.replace(/{t}/g,\"<table style='width:100%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%'><div style='text-align:center;font-weight:\");"
+    "var s=x.responseText.replace(/{t}/g,\"<table style='width:100%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{mr}/g,\"</th><td bgcolor=OrangeRed>\").replace(/{mg}/g,\"</th><td bgcolor=Lime>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%'><div style='text-align:center;font-weight:\");"
+    // END LVA 
+    "eb('l1').innerHTML=s;"
+    "}"
     "};"
     "x.open('GET','ay'+a,true);"
     "x.send();"
-    "lt=setTimeout(la,{a});"    // Settings.web_refresh
-  "}"
-  "function lb(p){"
+    "lt=setTimeout(la,{a});" // Settings.web_refresh
+    "}"
+    "function lb(p){"
     "la('?d='+p);"
-  "}"
-  "function lc(p){"
+    "}"
+    "function lc(p){"
     "la('?t='+p);"
-  "}";
+    "}";
 
 const char HTTP_HEAD_STYLE[] PROGMEM =
   "</script>"

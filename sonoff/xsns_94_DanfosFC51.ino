@@ -1,7 +1,8 @@
 /*
   xsns_34_DanfosFC51.ino - Danfos VLT MICRO DRIVE FC-51 Modbus frequency converter support for Sonoff-Tasmota
+  version 0.1.0.beta
 
-  Copyright (C) 2018  LVA  based by code Gennaro Tortone
+  Copyright (C) 2018  LVA  
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,24 +21,33 @@
 #ifdef USE_MODBUS
 #ifdef USE_FC51
 
+#define XSNS_94   94
+
+#define MODBUS_DEBUG
+#define MODBUS_SIM // modbus summulation
+
+#undef MODBUS_SPEED
+#ifndef MODBUS_SPEED
+#define MODBUS_SPEED 19200
+#endif
 
 //#warning "USE_FC51"
 #define D_LOG_FC51 "FC51: " // Wifi
-//#define
+
 /*********************************************************************************************\
- * Danfos FC51-Modbus frequency converter
+ * 
+ * Danfos FC51-Modbus frequency converter setting
  *
- * Based on: https://github.com/reaper7/SDM_Energy_Meter
+ * adress 1 bit
+ * function 1 bit
+ * data N bit
+ * CRC 2 bit 
+ * 
 \*********************************************************************************************/
 
 #include <TasmotaSerial.h>
 
-/* 
-adress 1 bit
-function 1 bit
-data N bit
-CRC 2 bit 
-*/
+
 /*----------------------------------START MODBUS BLOCK -------------------------------- */
   //0x01 - Read coils, 
   #define READ_MODBUS_REGISTR 0x03 // Read holding registers,
@@ -46,46 +56,34 @@ CRC 2 bit
     //0x0f - Write multiple coils,
     //0x10 - Write multiple registers,
     //0x0b - Get comm. event counter,
-    //0x11v Report slave ID
+    //0x11 - Report slave ID
 
 TasmotaSerial *MODBUS_Serial;
 bool MODBUS_initialized = false; 
-bool ModbusReceiveReady()
-{
+bool ModbusReceiveReady() {
   return (MODBUS_Serial->available() > 1);
 }
 bool use_modbus_tx_eneble_pin = false;
 
 void MODBUS_Init() {
-  //Serial.println("MODBUS START Init");
   snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS START init"));
   AddLog(LOG_LEVEL_INFO);
-  if ((pin[GPIO_MODBUS_RX] < 99) && (pin[GPIO_MODBUS_TX] < 99))
-  {
+  if ((pin[GPIO_MODBUS_RX] < 99) && (pin[GPIO_MODBUS_TX] < 99))  {
     MODBUS_Serial = new TasmotaSerial(pin[GPIO_MODBUS_RX], pin[GPIO_MODBUS_TX], 0);
-#ifdef MODBUS_SPEED
-    if (MODBUS_Serial->begin(MODBUS_SPEED))
-    {
-#else
-    if (MODBUS_Serial->begin(19200))
-    {
-#endif
-      if (MODBUS_Serial->hardwareSerial())
-      {
-        ClaimSerial();
+    if (MODBUS_Serial->begin(MODBUS_SPEED))   {
+      if (MODBUS_Serial->hardwareSerial())   {
+      ClaimSerial();
       }
-      snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS inited"));
+      snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS inited TX/RX pin:%i/%i"), pin[GPIO_MODBUS_TX], pin[GPIO_MODBUS_RX]);
       AddLog(LOG_LEVEL_INFO);
       MODBUS_initialized = true;
     }
-    if ((pin[GPIO_MODBUS_TX_ENABLE] < 99)) 
-    {
-      //use_modbus_tx_eneble_pin = false;
+    if ((pin[GPIO_MODBUS_TX_ENABLE] < 99))  {
+      pinMode(pin[GPIO_MODBUS_TX_ENABLE], OUTPUT);
       digitalWrite(pin[GPIO_MODBUS_TX_ENABLE], 0);
       #ifdef _LVA_DEBUG
-        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "GPIO_MODBUS_TX_ENABLE pin:%d"), pin[GPIO_MODBUS_TX_ENABLE]);
+        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "SET MODBUS_TX_ENABLE pin:%i"), pin[GPIO_MODBUS_TX_ENABLE]);
         AddLog(LOG_LEVEL_INFO);
-        //Serial.println(log_data);
       #endif
     }
     MODBUS_initialized=true;
@@ -96,8 +94,7 @@ void MODBUS_Init() {
   }
 }
 
-void ModbusSend16(uint8_t ModBusAdress, uint8_t function_code, uint16_t start_address, uint16_t register_count) 
-{
+void ModbusSend16(uint8_t ModBusAdress, uint8_t function_code, uint16_t start_address, uint16_t register_count) {
   uint8_t frame[8];
   frame[0] = ModBusAdress; // FC51 Modbus address
   frame[1] = function_code;
@@ -105,13 +102,11 @@ void ModbusSend16(uint8_t ModBusAdress, uint8_t function_code, uint16_t start_ad
   frame[3] = (uint8_t)(start_address);
   frame[4] = (uint8_t)(register_count >> 8);
   frame[5] = (uint8_t)(register_count);
-
   uint16_t crc = MODBUS_CRC(frame, 6);  // calculate out crc only from first 6 bytes
   frame[6] = lowByte(crc);
   frame[7] = highByte(crc);
 
-  while (MODBUS_Serial->available() > 0)
-  { // read serial if any old data is available
+  while (MODBUS_Serial->available() > 0)  { // read serial if any old data is available
     MODBUS_Serial->read();
   }
 
@@ -120,34 +115,63 @@ void ModbusSend16(uint8_t ModBusAdress, uint8_t function_code, uint16_t start_ad
   if ((pin[GPIO_MODBUS_TX_ENABLE] < 99)) digitalWrite(pin[GPIO_MODBUS_TX_ENABLE], 1);
   MODBUS_Serial->write(frame, sizeof(frame));
   if ((pin[GPIO_MODBUS_TX_ENABLE] < 99)) digitalWrite(pin[GPIO_MODBUS_TX_ENABLE], 0);
-}
 
-uint8_t ModbusReceive(uint32_t *value, uint8_t ModBusAdress, uint8_t function, uint8_t answerBytes) {
-  uint8_t buffer[answerBytes+5];
+#ifdef MODBUS_DEBUG
+  snprintf_P(log_data, sizeof(log_data), PSTR("%s\nModbusSend16 --> "), log_data);
+  for (uint8_t i=0;i<8;++i){
+    snprintf_P(log_data, sizeof(log_data), PSTR("%s%02X"), log_data, frame[i]);
+    if (i < 7) {
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s:"), log_data);
+    }
+  }
+#endif //MOBUS_DEBUG
+}
+//sensor94 0 stop
+uint8_t ModbusReceive(uint32_t *value, uint8_t mb_addr, uint8_t mb_function, uint16_t mb_reg, uint16_t answer_bytes) {
+  uint8_t total_bytes;
+  uint8_t th_bites;
+  if (READ_MODBUS_REGISTR == mb_function)   { //READ_MODBUS_REGISTR
+     total_bytes = answer_bytes + 5;
+     th_bites = answer_bytes;
+  } else if (WRITE_MODBUS_REGISTR==mb_function) { //WRITE_MODBUS_REGISTR
+    total_bytes = 8;
+    th_bites = (mb_reg >> 8) & 0xFF;
+  }
+  uint8_t buffer[total_bytes];
   *value = NAN;
   uint8_t len = 0;
-  while (MODBUS_Serial->available() > 0)
-  {
+  uint8_t ret = 0; // return code
+  while (MODBUS_Serial->available() > 0)   {
     buffer[len++] = (uint8_t)MODBUS_Serial->read();
   }
-  if (len != answerBytes+5)
-    return 3;   // FC51_ERR_NOT_ENOUGHT_BYTES
-  else
-  {
-    if (buffer[0] == ModBusAdress && buffer[1] == function && buffer[2] == answerBytes)
-    { // check node number, op code and reply bytes count
-      if ((MODBUS_CRC(buffer, len - 2)) == ((buffer[len - 1] << 8) | buffer[len - 2]))
-      { //calculate crc from first len - 2 bytes and compare with received crc (bytes 7 & 8)
-        for (uint8_t i = 0; i < answerBytes;)
-        {
-          ((uint8_t *)value)[i] = buffer[i];
+  if (len != total_bytes) { 
+    ret=3;        // FC51_ERR_NOT_ENOUGHT_BYTES
+  } else {
+    if (buffer[0] == mb_addr && buffer[1] == mb_function && buffer[2] == th_bites) { // check node number, op code and reply bytes count
+      if ((MODBUS_CRC(buffer, len - 2)) == ((buffer[len - 1] << 8) | buffer[len - 2])) { //calculate crc from first len - 2 bytes and compare with received crc (bytes 7 & 8)
+        for (uint8_t i = 0; i < answer_bytes; ++i) {
+          ((uint8_t *)value)[i] = buffer[(total_bytes - 3) - i];
+          //snprintf_P(log_data, sizeof(log_data), PSTR("%s i:%i -> %x "), log_data, i, buffer[(total_bytes - 2 - AnswerBytes) + i]);
         }
-      } else
-          return 1;   // FC51_ERR_CRC_ERROR
-    } else
-        return 2; // FC51_ERR_WRONG_BYTES
+        ret=0; // FC51_ERR_NO_ERROR
+      } else {
+        ret=1; // FC51_ERR_CRC_ERROR
+      }
+    } else { // FC51_ERR_WRONG_BYTES
+        ret=2;
+    }
   }
-  return 0; // FC51_ERR_NO_ERROR
+  #ifdef MODBUS_DEBUG
+    snprintf_P(log_data, sizeof(log_data), PSTR("%s Read bytes: %i <-- "), log_data, len);
+    for (uint8_t i = 0; i < len; ++i)  {
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s%02X"), log_data, buffer[i]);
+      if (i < (len-1))  {
+        snprintf_P(log_data, sizeof(log_data), PSTR("%s:"), log_data);
+      }
+    }
+    snprintf_P(log_data, sizeof(log_data), PSTR("%s ret:%i"), log_data, ret);
+  #endif //MOBUS_DEBUG
+  return ret;
 }
 
 uint16_t MODBUS_CRC(uint8_t *frame, uint8_t num) {
@@ -179,18 +203,21 @@ const uint16_t FC51_StatusAdress[] {
 };
 */
 #define FC51_CTW_ADDR 49999
-#define FC51_CTW_BYTES 2
-#define FC51_STW_ADDR 50100
-#define FC51_STW_BYTES 2
-#define FC51_MAX_FRQ_ADDR 3029     // Max Output Frequency param.3 - 03
-#define FC51_MAX_FRQ_BYTES 4
-#define FC51_ACT_FRQ_ADDR 50209
-#define FC51_ACT_FRQ_BYTES 4
-#define FC51_ACT_OUT_POWER_ADDR 16099 // Motor Power kW int32, converter inex 1
-#define FC51_ACT_OUT_POWER_BYTES 4
+#define FC51_CTW_WORDS 1 // Work ;)
+#define FC51_STW_ADDR 50199
+#define FC51_STW_WORDS 1 // work
+#define FC51_MAX_FRQ_ADDR 3029 // Max Output Frequency param.3 - 03   int32 converter inex -3
+#define FC51_MAX_FRQ_WORDS 2 // work не понял порядок
+#define FC51_REF_ADDR 50009  // задание частоты через Bus reference register (REF)
+#define FC51_REF_WORDS 1
+#define FC51_MAV_ADDR 50209 // actual frequency 
+#define FC51_MAV_WORDS 1
+#define FC51_AOP_ADDR 16099 // actual Motor Power kW int16, converter inex -3
+#define FC51_AOP_WORDS 1
+#define FC51_100PERCENT 16384 // значние 100% заданного параметра
+#define FC51_1PERCENT 163.84 // значние 1% заданного параметра
 /*
-struct ModbusDevices
-{
+struct ModbusDevices {
   uint8_t Addr = 0;
   uint8_t FC51_Runung = 0;
   uint16_t CTW = 0;           // Command Word
@@ -208,411 +235,526 @@ FC51[2].Addr = FC51_3_ADDR;
 uint16_t CTW[FC51_DEVICES];// = 0;
 uint16_t STW[FC51_DEVICES];// = 0;
 uint32_t MAX_FRQ[FC51_DEVICES];// = 0;
+uint16_t REF[FC51_DEVICES]; // = 0;
 uint16_t MAV[FC51_DEVICES];// = 0;     // Actual Output Frequency
 uint16_t AOP[FC51_DEVICES];// = 0;     //Actual Output POWER W
-uint8_t FC51_Runung = 0; // включен, зачение пишем и читаем по маске.
+uint8_t FC51_status = 0; // отвечает, зачение пишем и читаем по маске.
 uint8_t FC51_Addr[FC51_DEVICES] = {FC51_1_ADDR, FC51_2_ADDR, FC51_3_ADDR};
-uint8_t modbus_repeat = 0; // номер  попытки чтения параметра
+uint8_t Modbus_repeat = 0; // номер  попытки чтения параметра
 uint8_t FC51_Point=0; // номер команды, четный - запрос,  нечетный -чтение
-#define FC51_READ_PARAMETERS 5
+
+#define FC51_READ_PARAMETERS 6
 #define FC51_MAX_POINT 2*FC51_DEVICES*FC51_READ_PARAMETERS
 #define MODBUS_MAX_REPEAT 3
+#define MODBUS_COMMAND_REPEAT MODBUS_MAX_REPEAT *5 // для повышения вероятности достучатся. 1 команда бывает не проходит т.к. не всегда уудается отследить момент приходя команды и состояние буфера
 
-void FC51_50ms()
-{ // Every 100 mSec
+void FC51_pooling()
+{
   uint32_t value = 0;
   uint8_t error = 0;
   if (FC51_MAX_POINT == FC51_Point)   {
+  //if (12 == FC51_Point)   {
+  //if (2 == FC51_Point)   { // only CTW dev 0
     FC51_Point = 0;
   }
   uint8_t n_dev = FC51_Point / (FC51_READ_PARAMETERS * 2); // number of devises
   uint8_t n_com = (FC51_Point/2) % FC51_READ_PARAMETERS; // number of command
-  #ifdef DEBUG_MODBUS
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "FC51_Point:%d\t n_dev:%d\t n_com:%d\t devices addr:%d\t modbus_repeat:%d\n"), FC51_Point, n_dev, n_com, FC51_Addr[n_dev], modbus_repeat);
-  Serial.print(log_data);
-  #endif //DEBUG_MODBUS
+  // #ifdef DEBUG_MODBUS
+  // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "FC51_Point:%i\t DEV:%i\t n_com:%i\t devices addr:%i\t repeat:%i\n"), FC51_Point, n_dev, n_com, FC51_Addr[n_dev], modbus_repeat);
+  // Serial.print(log_data);
+  // #endif //DEBUG_MODBUS
 
   switch (n_com) {
     case 0:       // ---------------------------- C T W ---------------------------------------------
-      error = ModBusRead(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_CTW_ADDR, FC51_CTW_BYTES); //  Status Word
+      error = ModBusPool(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_CTW_ADDR, FC51_CTW_WORDS); //  Status Word
       if (10 == error) { // послали запрос на чтение, ничего делать не надо просто выходим
         break;
-      }
-      else if (99 == error) { // закончились попытки чтения, обнуляем параметр
+      } else if (99 == error) { // закончились попытки чтения, обнуляем параметр
         CTW[n_dev] = 0;
-      }
-      else if (0 == error) { // все хорошо 
+      } else if (0 == error) { // все хорошо можно читать следущий параметр
         CTW[n_dev] = (uint16_t)value;
-       // все хорошо можно читать следущий параметр
-        snprintf_P(log_data, sizeof(log_data), PSTR(" Control Word %x"), CTW[n_dev]);
-        Serial.println(log_data);
+        // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "DEV:%i, CTW:%x"), n_dev, CTW[n_dev]);
+        // Serial.println(log_data);
       }
       break;
     case 1:  // ---------------------------- S T W ---------------------------------------------
-      error = ModBusRead(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_STW_ADDR, FC51_STW_BYTES); //  Status Word
-      if (10 == error)
-      { // послали запрос на чтение, ничего делать не надо просто выходим
+      error = ModBusPool(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_STW_ADDR, FC51_STW_WORDS); //  Status Word
+      if (10 == error) { // послали запрос на чтение, ничего делать не надо просто выходим
         break;
-      }
-      else if (0 == error || 99 == error) { // все хорошо
+      } else if (0 == error || 99 == error) { // все хорошо
         STW[n_dev] = (uint16_t)value;
-        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "Status Word %x"), STW[n_dev]);
-        Serial.println(log_data);
-        //AddLog(LOG_LEVEL_INFO);
-        //FC51_Decode_STW();
+        // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "DEV:%i, STW:%x"), n_dev, STW[n_dev]);
+        // Serial.println(log_data);    //AddLog(LOG_LEVEL_INFO);
       }
     break;
-    case 2:
-      // ------------------ Max Output Frequency param. 3-03 --------------------------------------------
-      error = ModBusRead(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_MAX_FRQ_ADDR, FC51_MAX_FRQ_BYTES); //  Status Word
+    case 2:   // ------------------ Max Output Frequency param. (MAX_FRQ) 3-03 --------------------------------------------
+      error = ModBusPool(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_MAX_FRQ_ADDR, FC51_MAX_FRQ_WORDS); //  Status Word
       if (10 == error) { // послали запрос на чтение, ничего делать не надо просто выходим
         break;
-      }
-      else if (0 == error || 99 == error)     { // все хорошо
-        MAX_FRQ[n_dev] = value;
-        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "MAX_FRQ: %d/1000"), MAX_FRQ[n_dev]);
-        Serial.println(log_data);
-        //AddLog(LOG_LEVEL_INFO);
+      } else if (0 == error || 99 == error) { // все хорошо
+        MAX_FRQ[n_dev] = value; // -3 степень
+        // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "DEV:%i, MAX_FRQ: %i Hz"), n_dev, MAX_FRQ[n_dev]/1000);
+        // Serial.println(log_data);        //AddLog(LOG_LEVEL_INFO);
       }
       break;
-    case 3:
-      // ------------------ Actual Output Frequency (MAV) --------------------------------------------
-      error = ModBusRead(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_ACT_FRQ_ADDR, FC51_ACT_FRQ_BYTES); //  Status Word
+    case 3:       // ------------------ Actual Output Frequency (MAV) --------------------------------------------
+      error = ModBusPool(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_MAV_ADDR, FC51_MAV_WORDS); //  Status Word
       if (10 == error) { // послали запрос на чтение, ничего делать не надо просто выходим
         break;
-      }
-      else if (0 == error || 99 == error) { // все хорошо
+      } else if (0 == error || 99 == error) { // все хорошо
         MAV[n_dev] = value;
-        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "Actual Output Frequency: %d/10"), MAV[n_dev]);
-        Serial.println(log_data);
-        //AddLog(LOG_LEVEL_INFO);
+        // float mav_Hz = MAV[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;
+        // char mav_Hzs[7];
+        // dtostrfd(mav_Hz, 2, mav_Hzs);
+        // float mav_Pc = MAV[n_dev] / FC51_1PERCENT;
+        // char mav_Pcs[7];
+        // dtostrfd(mav_Pc, 2, mav_Pcs);
+        // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "DEV:%i, Actual Out Freq: %s%% / %s Hz(%d)"), n_dev, mav_Pcs, mav_Hzs, REF[n_dev]);
+        // Serial.println(log_data);
       }
       break;
-    case 4:
-      // ------------------ Actual Output POWER W (AOP) --------------------------------------------
-      error = ModBusRead(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_ACT_OUT_POWER_ADDR, FC51_ACT_OUT_POWER_BYTES); //  Status Word
-      if (10 == error)
-      { // послали запрос на чтение, ничего делать не надо просто выходим
+    case 4:      // ------------------ Actual Output POWER W (AOP) --------------------------------------------
+      error = ModBusPool(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_AOP_ADDR, FC51_AOP_WORDS); //  Status Word
+      if (10 == error) { // послали запрос на чтение, ничего делать не надо просто выходим
         break;
+      } else if (0 == error || 99 == error)   { // все хорошо
+        AOP[n_dev] = value; //  -3 степень
+        // uint16_t aop = AOP[n_dev]/1000;
+        // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "DEV:%i, Actual Out POWER W: %i(%i)"), n_dev, aop, AOP[n_dev]);
+        // Serial.println(log_data);
       }
-      else if (0 == error || 99 == error)
-      { // все хорошо
-        AOP[n_dev] = value;
-        snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "Actual Output POWER W: %d/1000"), AOP[n_dev]);
-        Serial.println(log_data);
-        //AddLog(LOG_LEVEL_INFO);
+      break;
+    case 5: // ------------------ REFERANCY FRQ (REF) --------------------------------------------
+      error = ModBusPool(&FC51_Point, &value, FC51_Addr[n_dev], READ_MODBUS_REGISTR, FC51_REF_ADDR, FC51_REF_WORDS); //  Status Word
+      if (10 == error)  { // послали запрос на чтение, ничего делать не надо просто выходим
+        break;
+      } else if (0 == error || 99 == error) { // все хорошо
+        REF[n_dev] = value;
+        // float ref_Hz = REF[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;
+        // char ref_Hzs[7];
+        // dtostrfd(ref_Hz, 2, ref_Hzs);
+        // float ref_Pc = REF[n_dev] / FC51_1PERCENT;
+        // char ref_Pcs[7];
+        // dtostrfd(ref_Pc, 2, ref_Pcs);
+        // snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "DEV:%i, REF: %s%% / %s Hz(%d)"), n_dev, ref_Pcs, ref_Hzs, REF[n_dev]);
+        // Serial.println(log_data);
       }
       break;
   }
-}
+//   // определяем статус устройств
+//   for (uint8_t dev=0; dev<FC51_DEVICES; ++dev){
+//     if (STW[dev] == 0 && CTW[dev]==0){
+//       FC51_status |= (1 << dev);// устанавливаем бит
+//     } else {
+//       FC51_status &= ~(1 << dev);  // сбрасываем  бит
+//     }
+//   }
+} // FC51_pooling()
 // =======================================
 
-uint8_t ModBusRead(uint8_t *point, uint32_t *p_value, uint8_t m_address, uint8_t m_function, uint16_t m_registr, uint16_t m_bytes)
-{
+uint8_t ModBusPool(uint8_t *point, uint32_t *p_value, uint8_t m_address, uint8_t m_function, uint16_t m_registr, uint16_t m_bytes) {
   uint8_t error = 0;  // то что будем возвращать
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "ModBusRead:{Point:%d\t, Repeat:%d\tADR:%d\t REG:%d"), *point, modbus_repeat, m_address, m_registr);
+  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "ModBusPool:{Point:%i, Repeat:%i\tADR:%i\t REG:%i\t"), *point, Modbus_repeat, m_address, m_registr);
   if (!(*point & 1)) {  // если четный  то пытаемся сделать запрос PointRead evene - request
-    //Serial.print("Point:");
-    //Serial.println(*point);
-    if (modbus_repeat < MODBUS_MAX_REPEAT)
-    { // если не закончились попытки
-      // запрашиваем
-      MODBUS_Serial->flush();
+    if (Modbus_repeat < MODBUS_MAX_REPEAT)    { // если не закончились попытки запрашиваем
       ModbusSend16(m_address, m_function, m_registr, m_bytes);
-
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s\t -> ModbusSend16, error: 10"), log_data);
-      Serial.println(log_data);
-
-      ++modbus_repeat; // инкрементируем запрос
+      // snprintf_P(log_data, sizeof(log_data), PSTR("%s, Wait answer}"), log_data);
+      // Serial.println(log_data);
       ++*point; // переходим к чтению
       return 10; // послали запрос надо читать следующий раз
     }
-    else {
-      modbus_repeat = 0; // обнуляем попытки
+    else { // если закончились попытки
+      Modbus_repeat = 0; // обнуляем попытки
       ++*point;
       ++*point;   // надо перескочить чтение, сразу делаемзапрос следующего
       *p_value=0; // обнуляем буфер со значением
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s\t MODBUS_MAX_REPEAT, error: 99"), log_data);
-      Serial.println(log_data);
+      // snprintf_P(log_data, sizeof(log_data), PSTR("%s MAX_REPEAT"), log_data);
+      // Serial.println(log_data);
       return 99;  // закончилось число попыток чтения
     }
-  }
-  else  {// не четный, читаем что получилось PointRead odd - revieve
+  } else {// не четный, читаем что получилось PointRead odd - revieve
     if (MODBUS_Serial->available() == 0)  {// проверяем, что что-то есть приемном буфере
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s\tNot data in buffer"), log_data);
-      //--*point; // все плохо повторяем чтение
+      // snprintf_P(log_data, sizeof(log_data), PSTR("%s Not data in buffer\t"), log_data);
       error = 4;
-    }
-    else  {
-      error = ModbusReceive(p_value, m_address, m_registr, m_bytes);
+    } else { // если что-то есть в буфере читаем
+      error = ModbusReceive(p_value, m_address, m_function, m_registr, m_bytes * 2);
     }
     if (error) {
       --*point; // все плохо повторяем чтение
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s\tError read"), log_data);
-    }
-    else {
+      ++Modbus_repeat; // инкрементируем номер попытки
+      // snprintf_P(log_data, sizeof(log_data), PSTR("%s Error read:%i"), log_data, error);
+    } else {
       ++*point; // все хорошо переходим к следующему параметру
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s\tead OK, value:%d"), log_data, *p_value);
-      //Serial.println(log_data);
-      modbus_repeat = 0;
+      // snprintf_P(log_data, sizeof(log_data), PSTR("%s Read OK, Value:%i"), log_data, *p_value);
+      Modbus_repeat = 0;
     }
-    snprintf_P(log_data, sizeof(log_data), PSTR("%s\t, error:%d}"), log_data, error);
-    Serial.println(log_data);
-    //AddLog(LOG_LEVEL_DEBUG);
+    // snprintf_P(log_data, sizeof(log_data), PSTR("%s}"), log_data);
+    // Serial.println(log_data); //AddLog(LOG_LEVEL_DEBUG);
     return error;
   }
-}
+} // ModBusPool
 
-  /*
-    bit,     0               |  1                   |  Normal
-    0 - Control not ready    | Control ready        |    1
-    1 - Unit not ready       | Unit ready           |    1
-    2 - Coasted              | Not coasted          |    0
-    3 -                      | Error, tripped       |    0
-    4 -                      | Error, no trip       |    0
-    5 - Not used             | Not used             |    x
-    6 -                      | Error, trip locked   |    0
-    7 - No warning           | Warning              |    0
-    8 - Not on reference     | On reference         |    1
-    9  - Hand mode           | Auto mode            |    1
-    10 - Out of freq. range  | In frequency range   |    1
-    11 - Not running         | Running              |    1
-    12 - No res. brake fault | Resistor brake fault |    0
-    13 - No voltage warning  | Voltage warning      |    0
-    14 - Not in current limit| Current limit        |    0
-    15 - No thermal warning  |Thermal warning       |    0
-    --------------------------------------------------------
-                                                      0xF03
-    */
+void log_comma(bool comma) {
+  if (comma)
+    snprintf_P(log_data, sizeof(log_data), PSTR("%s, "), log_data);
+} //log_comma
 
-char*  FC51_Decode_STW (uint8_t n)
-{
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "%d:{"), n);
-  if (!STW[n])
-  {
+char *FC51_Decode_STW(uint8_t n) {
+  snprintf_P(log_data, sizeof(log_data), PSTR("")); // clear !!!
+  //snprintf_P(log_data, sizeof(log_data), PSTR("{"));
+  if (!STW[n]) {
     snprintf_P(log_data, sizeof(log_data), PSTR("%s NOT DATA"), log_data);
+  } else  {
+    bool comma = false;
+    if (!(STW[n] & (1 << 0))) {
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sControl not ready"), log_data);
+      comma = true;
+    }
+    if (!(STW[n] & (1 << 1))) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sUnit not ready"), log_data);
+      comma = true;
+    }
+    // if (STW[n] &(1 << 2)) {
+    //   snprintf_P(log_data, sizeof(log_data), PSTR("%s, Coasted"), log_data);
+    // }
+    if (STW[n] & (1 << 3)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sERROR tripped"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 4)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sERROR no trip"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 6))    {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sERROR trip locked"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 7))    {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sWARNING"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 8) && !(STW[n] & (1 << 11))) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sOn reference"), log_data);
+      comma = true;
+    }
+    else if (!(STW[n] & (1 << 8)) && STW[n] & (1 << 11)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sNot at reference"), log_data);
+      comma = true;
+    }
+    if (!(STW[n] & (1 << 9))) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sHand mode"), log_data);
+      comma = true;
+    }
+    if (!(STW[n] & (1 << 10)) && STW[n] & (1 << 11)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sOut of freq. range"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 11)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sSTART"), log_data);
+      comma = true;
+    }
+    else {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sSTOP"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 12)) {
+      log_comma(comma); 
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sResistor brake fault"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 13)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sVoltage warning"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 14)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sCurrent limit"), log_data);
+      comma = true;
+    }
+    if (STW[n] & (1 << 15)) {
+      log_comma(comma);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%sThermal warning"), log_data);
+    }
   }
-  else
-  {
-    if (STW[n] != 0xF03)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s STW:%d"), log_data, STW[n]);
-    }
-    if (!(STW[n] & 1 < 0))
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Control not ready"), log_data);
-    }
-    if (!(STW[n] & 1 < 1))
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Unit not ready"), log_data);
-    }
-    if (STW[n] & 1 < 2)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Not Coasted"), log_data);
-    }
-    if (STW[n] & 1 < 3)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Error, tripped"), log_data);
-    }
-    if (STW[n] & 1 < 4)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Error, no trip"), log_data);
-    }
-    if (STW[n] & 1 < 6)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Error, trip locked"), log_data);
-    }
-    if (STW[n] & 1 < 7)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Warning"), log_data);
-    }
-    if (!(STW[n] & 1 < 8))
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Not on reference"), log_data);
-    }
-    if (!(STW[n] & 1 < 9))
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Hand mode"), log_data);
-    }
-    if (!(STW[n] & 1 < 10))
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Out of freq. range"), log_data);
-    }
-    if (!(STW[n] & 1 < 11))
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Not running"), log_data);
-    }
-    if (STW[n] & 1 < 12)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Resistor brake fault"), log_data);
-    }
-    if (STW[n] & 1 < 13)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Voltage warning"), log_data);
-    }
-    if (STW[n] & 1 < 14)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Current limit"), log_data);
-    }
-    if (STW[n] & 1 < 15)
-    {
-      snprintf_P(log_data, sizeof(log_data), PSTR("%s, Thermal warning"), log_data);
-    }
-  }
-  snprintf_P(log_data, sizeof(log_data), PSTR("%s}"), log_data);
-  Serial.println(log_data);
+  //snprintf_P(log_data, sizeof(log_data), PSTR("%s}"), log_data);
+//  Serial.println(log_data);//AddLog(LOG_LEVEL_INFO);
   return log_data;
-  //AddLog(LOG_LEVEL_INFO);
 }
-/*
-*/
-
-
-  /*  Command Word byte:
-    0 - Предустановленное задание/ Preset reference LSB
-    1 - Предустановленное задание/Preset reference MSB
-    2 - торможение DC (0 включено/ 1 выключено) / NO DC brake 
-    3 - Остановка выбегом (0 включено/ 1 выключено) /No coast stop
-    4 - Быстрая остановка (0 включено/ 1 выключено) / No quick stop
-    5 - фиксация частоты (0 включено/ 1 выключено) /No freeze outp
-    6 - Остановка(0) - запуск (1)/ Start
-    7 - сброс (1) /Reset
-    8 - нет фиксации часоты (0)- есть (1) /Jog ???
-    9 - изменение скорости 1/2 / Ramp 1 -Ramp 2
-    10 - недействительные данные/ действительные / Data valid
-    11 - Relay 1 off/on
-    12 - Not used
-    13 - Setup 1 Setup 2
-    14 - Not used
-    15  - Реверс(1) /Reversing
-
-    1148 (0x047C/  0000 0100 0111 1100) -включить
-                              ^ пуск        
-    */
-/*
-void FC51_Write_CTW(bool start_stop) // не дописана еще
-{
-  FC51_ModbusSend16(WRITE_REGISTR, FC51_StatusAdress[0], 2);
-  error = FC51_ModbusReceive(&value, 0x03, 2);
-  if (error)
-  {
-    snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "FC51 CTW response error %d"), error);
-    AddLog(LOG_LEVEL_INFO);
-    break;
-  }
-  CTW = (uint16_t)value;
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 "FC51 Command Word %x"), value);
-  AddLog(LOG_LEVEL_INFO);
-  FC51_Runung = CTW & 1 < 6; // определили статус
-  //для включния надо будет использовать 'CTW|=1<6' для выключения 'CTW&=~(1<<6)' , где 6 - номер бита
-  // можно использовать bitRead(value, bit), или bitSet или bitClear
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_FC51 " Runnund %x"), FC51_Runung);
-  AddLog(LOG_LEVEL_INFO);
-}
-*/
-
-
-
-
-/*
-#ifdef USE_WEBSERVER
-const char HTTP_FC51_DATA[] PROGMEM = "%s"
-  "{s}SDM120 " D_VOLTAGE "{m}%s " D_UNIT_VOLT "{e}"
-  "{s}SDM120 " D_CURRENT "{m}%s " D_UNIT_AMPERE "{e}"
-  "{s}SDM120 " D_POWERUSAGE_ACTIVE "{m}%s " D_UNIT_WATT "{e}"
-  "{s}SDM120 " D_POWERUSAGE_APPARENT "{m}%s " D_UNIT_VA "{e}"
-  "{s}SDM120 " D_POWERUSAGE_REACTIVE "{m}%s " D_UNIT_VAR "{e}"
-  "{s}SDM120 " D_POWER_FACTOR "{m}%s{e}"
-  "{s}SDM120 " D_FREQUENCY "{m}%s " D_UNIT_HERTZ "{e}"
-  "{s}SDM120 " D_ENERGY_TOTAL "{m}%s " D_UNIT_KILOWATTHOUR "{e}";
-#endif  // USE_WEBSERVER
-*/
-
-#ifdef USE_WEBSERVER
-const char HTTP_FC51_STR[] PROGMEM = "%s" "{s}FC51_%d %s:" "{m}%s" "{e}"; // 4 переменные
-const char HTTP_FC51_INT[] PROGMEM = "%s" "{s}FC51_%d %s:" "{m}%d %s" "{e}"; // 5 переменных "FC51_1 STW:111 Hz"
-const char HTTP_FC51_MODBUS_ERR[] PROGMEM = "%s" "{s}MODBUS" "{m}%s" "{e}"; // 5 переменных "FC51_1 STW:111 Hz"
-#endif  // USE_WEBSERVER
 
 // for i18.h
-#define D_FC51 "FC51_"
+#define D_FC51 "FC51:"
 #define D_CTW "CTW"
 #define D_STW "STW"
 #define D_STW_D "STW decode"
-#define D_MAX_FRQ "MAX FRQ"
-#define D_MAV "OUT FRQ"
-#define D_AOP "OUT POWER"
+#define D_MAX_FRQ "Max.FRQ"
+#define D_MAV "FRQ"
+#define D_AOP "POWER"
+#define D_REF "Refer.FRQ"
+#define D_STATUS "STATUS"
 
+#ifdef USE_WEBSERVER
+const char HTTP_FC51_STR_4[] PROGMEM = "%s" "{s}FC51:%i %s:" "{m}%s" "{e}"; // 4 переменных
+const char HTTP_FC51_STR_4R[] PROGMEM = "%s" "{s}FC51:%i %s:" "{mr}%s" "{e}"; // 4 переменных
+const char HTTP_FC51_STR_4G[] PROGMEM = "%s" "{s}FC51:%i %s:" "{mg}%s" "{e}"; // 4 переменных
+const char HTTP_FC51_STR_7[] PROGMEM = "%s" "{s}FC51:%i %s:" "{m}%s%s/%s%s" "{e}"; // 7 переменных
+const char HTTP_FC51_INT[] PROGMEM = "%s" "{s}FC51:%i %s:" "{m}%i %s" "{e}"; // 5 переменных "FC51_1 STW:111 Hz"
+const char HTTP_FC51_MODBUS_ERR[] PROGMEM = "%s" "{s}MODBUS" "{m}%s" "{e}"; // 2 переменных 
+#endif  // USE_WEBSERVER
 
-
-void FC51_Show(boolean json)
-{
-/*
-  char voltage[10];
-  char current[10];
-  char active_power[10];
-  char apparent_power[10];
-  char reactive_power[10];
-  char power_factor[10];
-  char frequency[10];
-  char energy_total[10];
-
-  //dtostrfd((double)ESP.getVcc()/1000, 3, stemp1); "значение инт", "количество знаков", "стороковая переменная куда сохраняем результат"
-
-  dtostrfd(sdm120_voltage, Settings.flag2.voltage_resolution, voltage);
-  dtostrfd(sdm120_current, Settings.flag2.current_resolution, current);
-  dtostrfd(sdm120_active_power, Settings.flag2.wattage_resolution, active_power);
-  dtostrfd(sdm120_apparent_power, Settings.flag2.wattage_resolution, apparent_power);
-  dtostrfd(sdm120_reactive_power, Settings.flag2.wattage_resolution, reactive_power);
-  dtostrfd(sdm120_power_factor, 2, power_factor);
-  dtostrfd(sdm120_frequency, Settings.flag2.frequency_resolution, frequency);
-  dtostrfd(sdm120_energy_total, Settings.flag2.energy_resolution, energy_total);
-*/
-  if (json)    {
-    for (uint8_t n_dev = 0; n_dev < FC51_DEVICES; ++n_dev)     {
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"" D_FC51 "%d\":{\"" D_CTW "\":%d,\"" D_STW "\":%d,\"" D_MAX_FRQ "\":%d,\"" D_MAV "\":%d,\"" D_AOP "\":%d,\"" D_STW_D "\":%s}"),
-                 mqtt_data, n_dev, CTW[n_dev], STW[n_dev], MAX_FRQ[n_dev], MAV[n_dev], AOP[n_dev], FC51_Decode_STW(n_dev));
+void FC51_Show(boolean json) {
+  if (json) {
+    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,"), mqtt_data); // onli first comma 
+    for (uint8_t n_dev = 0; n_dev < FC51_DEVICES; ++n_dev) {
+      float mav_Pc = MAV[n_dev] / FC51_1PERCENT; //MAV
+      char mav_Pcs[7];
+      dtostrfd(mav_Pc, 2, mav_Pcs);
+      float ref_Pc = REF[n_dev] / FC51_1PERCENT; // REF
+      char ref_Pcs[7];
+      dtostrfd(ref_Pc, 2, ref_Pcs);
+      char status[7];
+      if (STW[n_dev] & (1 << 11))    {  // STATUS
+        snprintf_P(status, sizeof(status), PSTR("%s"), "START");
+      } else {
+        snprintf_P(status, sizeof(status), PSTR("%s"), "STOP");
+      }
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"" D_FC51 "%i\":{\"" D_STATUS "\":\"%s\",\"" D_CTW "\":%i,\"" D_STW "\":%i,\"" D_MAX_FRQ "\":%i,\"" D_REF "\":%s,\"" D_MAV "\":%s,\"" D_AOP "\":%i,\"" D_STW_D "\":{\"%s\"}}"),
+                 mqtt_data, n_dev, status, CTW[n_dev], STW[n_dev], MAX_FRQ[n_dev] / 1000, ref_Pcs, mav_Pcs, AOP[n_dev], FC51_Decode_STW(n_dev));
       if (n_dev < (FC51_DEVICES - 1)) {
         snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s%s"),mqtt_data,",");
       }
     }
-/*
-    snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"" D_RSLT_ENERGY "\":{\"" D_JSON_TOTAL "\":%s,\"" D_JSON_ACTIVE_POWERUSAGE "\":%s,\"" D_JSON_APPARENT_POWERUSAGE "\":%s,\"" D_JSON_REACTIVE_POWERUSAGE "\":%s,\"" D_JSON_FREQUENCY "\":%s,\"" D_JSON_POWERFACTOR "\":%s,\"" D_JSON_VOLTAGE "\":%s,\"" D_JSON_CURRENT "\":%s}"),
-      mqtt_data, energy_total, active_power, apparent_power, reactive_power, frequency, power_factor, voltage, current);
-#ifdef USE_DOMOTICZ
-    if (0 == tele_period) {
-      DomoticzSensor(DZ_VOLTAGE, voltage);
-      DomoticzSensor(DZ_CURRENT, current);
-      DomoticzSensorPowerEnergy((int)sdm120_active_power, energy_total);
-    }
-#endif  // USE_DOMOTICZ
-*/
+
 #ifdef USE_WEBSERVER
   } else {
     if (MODBUS_initialized){
-      for (uint8_t n_dev = 0; n_dev < FC51_DEVICES; ++n_dev)
-      {
+      for (uint8_t n_dev = 0; n_dev < FC51_DEVICES; ++n_dev) {
         snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_CTW, CTW[n_dev], "");
         snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_STW, STW[n_dev], "");
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR, mqtt_data, n_dev, D_STW_D, FC51_Decode_STW(n_dev));
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_MAX_FRQ, MAX_FRQ[n_dev], "Hz");
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_MAV, MAV[n_dev], "Hz");
+        if (STW[n_dev] & (1 << 11)) { //STATUS
+          snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_4R, mqtt_data, n_dev, D_STW_D, FC51_Decode_STW(n_dev), "");
+        } else {
+          snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_4G, mqtt_data, n_dev, D_STW_D, FC51_Decode_STW(n_dev), "");
+        }
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_MAX_FRQ, MAX_FRQ[n_dev]/1000, "Hz");
+        float mav_Hz = MAV[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;        //MAV to Hz
+        char mav_Hzs[7];
+        dtostrfd(mav_Hz, 2, mav_Hzs);
+        float mav_Pc = MAV[n_dev] / FC51_1PERCENT;
+        char mav_Pcs[7];
+        dtostrfd(mav_Pc, 2, mav_Pcs);
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_7, mqtt_data, n_dev, D_MAV, mav_Pcs, "\%", mav_Hzs, "Hz");
         snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_AOP, AOP[n_dev], "W");
+        float ref_Hz = REF[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;// REF to Hz
+        char ref_Hzs[7];
+        dtostrfd(ref_Hz, 2, ref_Hzs);
+        float ref_Pc = REF[n_dev] / FC51_1PERCENT;
+        char ref_Pcs[7];
+        dtostrfd(ref_Pc, 2, ref_Pcs);
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_7, mqtt_data, n_dev, D_REF, ref_Pcs, "\%", ref_Hzs, "Hz");
       }
-    }
-    else {
+    } else {
       snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_MODBUS_ERR, mqtt_data,"don't set TX and RX Pins");
     }
 #endif  // USE_WEBSERVER
   }
 }
 
+/*********************************************************************************************\
+ * START/STOP
+ * "SENSOR94,N,command" or "SENSOR94 N command"
+ *    - command: STOP/START or OFF/ON or 1/2  sensor94 0,stop
+ *    - N -  0...2
+ *    example: sensor94,1,stop   sensor94 1 OFF   sensor94,1,1
+ * "SENSOR94,N,SPEED FRQ"
+      FRQ - speed  from 0...100  persent
+\*********************************************************************************************/
+bool FC51Command() {
+  boolean serviced = false; // переменная для return
+  uint8_t paramcount = 0; // количестdо полученных в команде параметров
+  uint8_t dev_id = 99;
+  if (XdrvMailbox.data_len > 0) { // проверяем что есть парамаметры
+    paramcount = 1;
+  } else {
+    return serviced;
+  }
+  char sub_string[XdrvMailbox.data_len];
+  for (uint8_t ca=0;ca<XdrvMailbox.data_len;ca++) { // определяем количество полученных параметров
+    if ((' ' == XdrvMailbox.data[ca]) || ('=' == XdrvMailbox.data[ca])) { XdrvMailbox.data[ca] = ','; }
+    if (',' == XdrvMailbox.data[ca]) { paramcount++; }
+  }
+  //
+  // Serial.print("FC51 Command.paramcount:"); //-
+  // Serial.println(paramcount, DEC); // -
+  UpperCase(XdrvMailbox.data, XdrvMailbox.data); // все сделали строковыми
+   
+  if (FC51_Point & 1) { //ПРОВЕРКА ТЕКУШИЙ СТАТУС ОПРОСА СОСТОЯНИЯ FC51_pooling, сделали запрос но не прочитали  
+    FC51_pooling();
+  }
+  if (paramcount > 1) { // если команд больше 1, то вторым (от 0) номер устройства, в индексе 0 идентификатор сервиса
+    dev_id = atoi(subStr(sub_string, XdrvMailbox.data, ",", 1)); // Function to return a substring defined by a delimiter at an index char *subStr(char *dest, char *str, const char *delim, int index)
+    if (dev_id >= FC51_DEVICES) { // проверка на правильный  номер устройства
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"ERROR\":\"Number devices not detected\"}}"), dev_id);
+      return serviced;
+    }
+    if (CTW[dev_id]==0) { // проверка что устройство отзывается
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"ERROR\":\"devices OFFLINE\"}}"), dev_id);
+      return serviced;
+    }
+    if (paramcount == 2) { //  sensor94 0 start 
+      uint16_t start_stop = CTW[dev_id]; 
+      char c_str[7]; //6
+      snprintf_P(c_str, sizeof(c_str), subStr(sub_string, XdrvMailbox.data, ",", 2));
+      // Serial.print("c_str:[");                     //-
+      // Serial.print(c_str);                         //-
+      // Serial.println("]");                         //-
+      if (0==strcmp(c_str, "START") || 2 == atoi(c_str) || 0==strcmp(c_str, "ON")) { // -------- здесь включаем   sensor94 1,START    sensor94 1,2 sensor94 1,ON sensor94 1,on
+        // Serial.println("-start-"); //
+        start_stop |= (1 << 6);// пример Var |= (1 << 3) | (1 << 5);
+      }
+      else if (0==strcmp(c_str, "STOP") || 1 == atoi(c_str) || 0==strcmp(c_str, "OFF")) {// //  sensor94 1,STOP  sensor94 1,stop, sensor94 0,OFF sensor94 1 1 sensor94 0,qqqqq
+        // Serial.println("-stop-"); //
+        start_stop &= ~(1<<6);  // сбрасываем 6 бит пример Var &= ~((1 << 2) | (1 << 6));
+      } else {
+        // Serial.println("-error-"); //
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"ERROR\":\"command:%s\"}}"), dev_id, c_str);
+        return serviced;
+      }
+      // Serial.print("to ModbusWrReg start_stop:\t");  // debug
+      // Serial.println(start_stop); // debug
+      if (start_stop != CTW[dev_id]) {
+        serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);
+      } else {
+        serviced=true;
+      }
+      if (serviced) {
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"%s\"}}"), dev_id, c_str);
+      } else {
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"ERROR\"}}"), dev_id);
+      }
+      return serviced;
+    }
+  }
+  if (paramcount > 2) {// sensor94 1 SPEED 20    sensor94 1 SPEED 29 sensor94 1 SPEED 100
+    if (0==strcmp(subStr(sub_string, XdrvMailbox.data, ",", 2), "SPEED")) { // если задается скорость в %
+      uint16_t new_REF = atoi(subStr(sub_string, XdrvMailbox.data, ",", 3));
+      if (new_REF <= 100) {// праверяем правильность скорости в %
+        if (new_REF == 0) { //если выключили
+          if ((CTW[dev_id] & (1 << 6))) { // если  включен 
+            uint16_t start_stop = CTW[dev_id];
+            start_stop &= ~(1 << 6); // сбросили бит
+            serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);
+            if (serviced) {
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"%s\",\"SPEED\":0}}"), dev_id, "STOP");
+            } else {
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"ERROR\"}}"), dev_id);
+            }
+          } else {
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"Was STOPPED!\",\"STATUS\":\"STOP\"}}"), dev_id); //
+            serviced = true;
+          }
+        } else { // -------- здесь устанавливаем скорость   sensor94 1 SPEED 1 sensor94 1 SPEED 0    sensor94 1 SPEED 31     sensor94 1 SPEED 100
+          new_REF = new_REF * FC51_1PERCENT;
+          // snprintf_P(log_data, sizeof(log_data), PSTR("new_REF: %i  <-->  REF:%i "), new_REF, REF[dev_id]);
+          // Serial.println(log_data);
+          if (new_REF != REF[dev_id] || !(CTW[dev_id] & (1 << 6))) { // проверяем что она была изменена или не включен
+            serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_REF_ADDR, new_REF, FC51_REF_WORDS);
+          } else {
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"Not changed!\"}}"), dev_id);
+            serviced=true;
+          }
+          // snprintf_P(log_data, sizeof(log_data), PSTR("serviced: %i"), serviced);
+          // Serial.println(log_data);
+          if (serviced) {
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":%i,\"STATUS\":"), dev_id, new_REF);
+            if (!(CTW[dev_id] & (1 << 6)))   { // если прошла  предварительная команда и выключен 
+              uint16_t start_stop = CTW[dev_id];
+              start_stop |= (1 << 6);
+              //Serial.println("Ready to On");       //-
+              serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);  //  -- отключаем на время отладки
+              if (serviced) {
+                snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "START");
+              } else {
+                snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "STOP");
+              }
+            } else {
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "START");
+            }
+          }
+        }
+        if (!serviced) { // проверяем что все закончиось хорошо
+          // snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"FC51\":{\"ID_%i\":{\"SPEED\":\"%d\"}}}"), dev_id, new_REF);
+          snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"ERROR\"}}"), dev_id);
+        }
+      } else {
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"OUT RANGE %i\"}}"), dev_id, new_REF);
+      } // <100
+      return serviced;
+    } else { // команада не распознана
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"COMMAND\":\"ERROR\"}}"), dev_id);
+    }// SPEED
+  }   // paramcount > 2
+  return serviced;
+} // FC51Command()
+
+boolean ModbusWrReg(uint8_t s_address, uint8_t s_function, uint16_t s_reg, uint16_t s_data, uint8_t s_words) { //  sensor94 0 stop  sensor94 1 SPEED 1  sensor94 1 SPEED 0
+  uint8_t repeat = 1;
+  bool status = false;
+  // char temp_[150]; // ВНИМАНИЕ Глючит, нехватает памяти для стека
+  // snprintf_P(temp_, sizeof(temp_), PSTR("\nModbusWrReg FC51_Point:%i"), FC51_Point);
+  if (FC51_Point & 1) { //ПРОВЕРКА ТЕКУШИЙ СТАТУС ОПРОСА СОСТОЯНИЯ FC51_pooling, сделали запрос но не прочитали
+    // snprintf_P(temp_, sizeof(temp_), PSTR("%s\t\t RUN FC51_pooling!!!!!!!!!"), temp_);
+    FC51_pooling();
+  } else {
+    if (MODBUS_Serial->available() > 0) { // read serial if any old data is available
+      // snprintf_P(temp_, sizeof(temp_), PSTR("%s\t\t HAVE Not READ data!!!!!!!!!"), temp_);
+    }
+  }
+    // Serial.println(temp_);
+  snprintf_P(log_data, sizeof(log_data), PSTR("")); // clear !!!
+  while (repeat <= MODBUS_COMMAND_REPEAT && status == false ) {
+    while (MODBUS_Serial->available() > 0) { // read serial if any old data is available
+      MODBUS_Serial->read();
+    }
+    ModbusSend16(s_address, s_function, s_reg, s_data);
+    // snprintf_P(log_data, sizeof(log_data), PSTR("%s\nRepeat %i set command to %i"), log_data, repeat, s_address);
+    // Serial.println(log_data);
+    #define RDELAY 800000 // 700000
+    uint16_t delay_read = RDELAY / MODBUS_SPEED + RDELAY / (MODBUS_SPEED*7) * repeat;
+    delay(delay_read); 
+    uint32_t r_data;
+    uint8_t r_bytes=s_words * 2;
+    uint8_t error = ModbusReceive(&r_data, s_address, s_function, s_reg, r_bytes);
+    //Serial.println(log_data);
+    if (s_data == (uint16_t)r_data) {
+      // snprintf_P(log_data, sizeof(log_data), PSTR("\nSENT and RECIEVED COMMAND to ADDR:%i Valid"), s_address);
+      // Serial.println(log_data);
+      status = true;
+    }
+    else {
+      Serial.println(log_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("\nCOMMAND NOT Valid: ADDR:%i\tFUNC:%i\tREG:%i\tRepeat:%i\tdelay_read:%i\t TX/RX DATA:%i/%i"), s_address, s_function, s_reg, repeat, delay_read, s_data, r_data);
+      Serial.println(log_data);
+    }
+    ++repeat;
+  }
+  return status;
+}
 
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
-
-#define XSNS_94
 
 boolean Xsns94(byte function)
 {
@@ -625,26 +767,36 @@ boolean Xsns94(byte function)
       case FUNC_INIT:
         MODBUS_Init();
         break;
-      case FUNC_EVERY_50_MSECOND:
-        //FC51_50ms();
-          break;
+      case FUNC_EVERY_250_MSECOND: //50 100 250
+        if (MODBUS_initialized) {
+          FC51_pooling();
+        }
+        break;
       case FUNC_EVERY_SECOND:
-        if (MODBUS_initialized)
-          FC51_50ms();
+        if (MODBUS_initialized) {
+          //FC51_pooling();
+        }
         break;
       case FUNC_JSON_APPEND:
-        //FC51_Show(1);
+        FC51_Show(1);
+        break;
+      case FUNC_COMMAND:
+        if (MODBUS_initialized) {
+          if (XSNS_94 == XdrvMailbox.index)  {
+            result = FC51Command();
+          }
+        }
         break;
 #ifdef USE_WEBSERVER
       case FUNC_WEB_APPEND:
-        //if (MODBUS_initialized)
+        if (MODBUS_initialized) {
           FC51_Show(0);
+        }
         break;
 #endif  // USE_WEBSERVER
     }
-  //}
+  //} // MODBUS_initialized
   return result;
 }
-
 #endif   // USE_FC51
 #endif   //USE_MODBUS
