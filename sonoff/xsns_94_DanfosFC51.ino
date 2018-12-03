@@ -1,6 +1,6 @@
 /*
   xsns_34_DanfosFC51.ino - Danfos VLT MICRO DRIVE FC-51 Modbus frequency converter support for Sonoff-Tasmota
-  version 0.1.0.beta
+  version 0.1.1.beta
 
   Copyright (C) 2018  LVA  
 
@@ -32,7 +32,16 @@
 #endif
 
 //#warning "USE_FC51"
-#define D_LOG_FC51 "FC51: " // Wifi
+#define D_LOG_FC51 "FC51: " // FC51
+#define D_LOG_MODBUS "MODBUS: "  // MQTT
+
+/*
+#define D_ONLINE "Online"
+#define D_OFFLINE "Offline"
+#define D_PORT "Port"
+#define D_START "Start"
+
+*/
 
 /*********************************************************************************************\
  * 
@@ -66,7 +75,7 @@ bool ModbusReceiveReady() {
 bool use_modbus_tx_eneble_pin = false;
 
 void MODBUS_Init() {
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS START init"));
+  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG D_LOG_MODBUS D_START " init"));
   AddLog(LOG_LEVEL_INFO);
   if ((pin[GPIO_MODBUS_RX] < 99) && (pin[GPIO_MODBUS_TX] < 99))  {
     MODBUS_Serial = new TasmotaSerial(pin[GPIO_MODBUS_RX], pin[GPIO_MODBUS_TX], 0);
@@ -74,7 +83,7 @@ void MODBUS_Init() {
       if (MODBUS_Serial->hardwareSerial())   {
       ClaimSerial();
       }
-      snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS inited TX/RX pin:%i/%i"), pin[GPIO_MODBUS_TX], pin[GPIO_MODBUS_RX]);
+      snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG D_LOG_MODBUS "inited TX/RX pin:%i/%i"), pin[GPIO_MODBUS_TX], pin[GPIO_MODBUS_RX]);
       AddLog(LOG_LEVEL_INFO);
       MODBUS_initialized = true;
     }
@@ -89,7 +98,7 @@ void MODBUS_Init() {
     MODBUS_initialized=true;
   }
   else {
-    snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG "MODBUS ERROR: TX and RX pins don't set"));
+    snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_DEBUG D_LOG_MODBUS D_ERROR "TX and RX pins don't set"));
     AddLog(LOG_LEVEL_INFO);
   }
 }
@@ -420,17 +429,17 @@ char *FC51_Decode_STW(uint8_t n) {
     // }
     if (STW[n] & (1 << 3)) {
       log_comma(comma);
-      snprintf_P(log_data, sizeof(log_data), PSTR("%sERROR tripped"), log_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s" D_ERROR " tripped"), log_data);
       comma = true;
     }
     if (STW[n] & (1 << 4)) {
       log_comma(comma);
-      snprintf_P(log_data, sizeof(log_data), PSTR("%sERROR no trip"), log_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s" D_ERROR " no trip"), log_data);
       comma = true;
     }
     if (STW[n] & (1 << 6))    {
       log_comma(comma);
-      snprintf_P(log_data, sizeof(log_data), PSTR("%sERROR trip locked"), log_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s" D_ERROR " trip locked"), log_data);
       comma = true;
     }
     if (STW[n] & (1 << 7))    {
@@ -460,12 +469,12 @@ char *FC51_Decode_STW(uint8_t n) {
     }
     if (STW[n] & (1 << 11)) {
       log_comma(comma);
-      snprintf_P(log_data, sizeof(log_data), PSTR("%sSTART"), log_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s" D_ON), log_data);
       comma = true;
     }
     else {
       log_comma(comma);
-      snprintf_P(log_data, sizeof(log_data), PSTR("%sSTOP"), log_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("%s" D_OFF), log_data);
       comma = true;
     }
     if (STW[n] & (1 << 12)) {
@@ -494,22 +503,22 @@ char *FC51_Decode_STW(uint8_t n) {
 }
 
 // for i18.h
-#define D_FC51 "FC51:"
+#define D_FC51 "FC"
 #define D_CTW "CTW"
 #define D_STW "STW"
-#define D_STW_D "STW decode"
-#define D_MAX_FRQ "Max.FRQ"
+#define D_STW_D "STWdecode"
+#define D_MAX_FRQ "MaxFRQ"
 #define D_MAV "FRQ"
 #define D_AOP "POWER"
-#define D_REF "Refer.FRQ"
+#define D_REF "ReferFRQ"
 #define D_STATUS "STATUS"
 
 #ifdef USE_WEBSERVER
-const char HTTP_FC51_STR_4[] PROGMEM = "%s" "{s}FC51:%i %s:" "{m}%s" "{e}"; // 4 переменных
-const char HTTP_FC51_STR_4R[] PROGMEM = "%s" "{s}FC51:%i %s:" "{mr}%s" "{e}"; // 4 переменных
-const char HTTP_FC51_STR_4G[] PROGMEM = "%s" "{s}FC51:%i %s:" "{mg}%s" "{e}"; // 4 переменных
-const char HTTP_FC51_STR_7[] PROGMEM = "%s" "{s}FC51:%i %s:" "{m}%s%s/%s%s" "{e}"; // 7 переменных
-const char HTTP_FC51_INT[] PROGMEM = "%s" "{s}FC51:%i %s:" "{m}%i %s" "{e}"; // 5 переменных "FC51_1 STW:111 Hz"
+const char HTTP_FC51_STR_4[] PROGMEM =  "%s" "{s}" D_FC51 ":%i %s:" "{m}%s"        "{e}"; // 4 переменных
+const char HTTP_FC51_STR_4R[] PROGMEM = "%s" "{s}" D_FC51 ":%i %s:" "{mr}%s"       "{e}"; // 4 переменных
+const char HTTP_FC51_STR_4G[] PROGMEM = "%s" "{s}" D_FC51 ":%i %s:" "{mg}%s"       "{e}"; // 4 переменных
+const char HTTP_FC51_STR_7[] PROGMEM =  "%s" "{s}" D_FC51 ":%i %s:" "{m}%s%s/%s%s" "{e}"; // 7 переменных
+const char HTTP_FC51_INT[] PROGMEM =    "%s" "{s}" D_FC51 ":%i %s:" "{m}%i %s"     "{e}"; // 5 переменных "FC51_1 STW:111 Hz"
 const char HTTP_FC51_MODBUS_ERR[] PROGMEM = "%s" "{s}MODBUS" "{m}%s" "{e}"; // 2 переменных 
 #endif  // USE_WEBSERVER
 
@@ -517,20 +526,21 @@ void FC51_Show(boolean json) {
   if (json) {
     snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,"), mqtt_data); // onli first comma 
     for (uint8_t n_dev = 0; n_dev < FC51_DEVICES; ++n_dev) {
+// надо переделать на 1 переменную
       float mav_Pc = MAV[n_dev] / FC51_1PERCENT; //MAV
       char mav_Pcs[7];
       dtostrfd(mav_Pc, 2, mav_Pcs);
       float ref_Pc = REF[n_dev] / FC51_1PERCENT; // REF
       char ref_Pcs[7];
       dtostrfd(ref_Pc, 2, ref_Pcs);
-      char status[7];
+      char status[4];
       if (STW[n_dev] & (1 << 11))    {  // STATUS
-        snprintf_P(status, sizeof(status), PSTR("%s"), "START");
+        snprintf_P(status, sizeof(status), PSTR(D_ON));
       } else {
-        snprintf_P(status, sizeof(status), PSTR("%s"), "STOP");
+        snprintf_P(status, sizeof(status), PSTR(D_OFF));
       }
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"" D_FC51 "%i\":{\"" D_STATUS "\":\"%s\",\"" D_CTW "\":%i,\"" D_STW "\":%i,\"" D_MAX_FRQ "\":%i,\"" D_REF "\":%s,\"" D_MAV "\":%s,\"" D_AOP "\":%i,\"" D_STW_D "\":{\"%s\"}}"),
-                 mqtt_data, n_dev, status, CTW[n_dev], STW[n_dev], MAX_FRQ[n_dev] / 1000, ref_Pcs, mav_Pcs, AOP[n_dev], FC51_Decode_STW(n_dev));
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"" D_FC51 "%i\":{\"" D_STATUS "\":\"%s\",\"" D_CTW "\":%i,\"" D_STW "\":%i,\"" D_MAX_FRQ "\":%i,\"" D_REF "\":%s,\"" D_MAV "\":%s,\"" D_AOP "\":%i,\"" D_STW_D "\":\"%s\"}"),
+                 mqtt_data, (n_dev + 1), status, CTW[n_dev], STW[n_dev], MAX_FRQ[n_dev] / 1000, ref_Pcs, mav_Pcs, AOP[n_dev], FC51_Decode_STW(n_dev));
       if (n_dev < (FC51_DEVICES - 1)) {
         snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s%s"),mqtt_data,",");
       }
@@ -540,29 +550,27 @@ void FC51_Show(boolean json) {
   } else {
     if (MODBUS_initialized){
       for (uint8_t n_dev = 0; n_dev < FC51_DEVICES; ++n_dev) {
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_CTW, CTW[n_dev], "");
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_STW, STW[n_dev], "");
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, (n_dev + 1), D_CTW, CTW[n_dev], "");
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, (n_dev + 1), D_STW, STW[n_dev], "");
         if (STW[n_dev] & (1 << 11)) { //STATUS
-          snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_4R, mqtt_data, n_dev, D_STW_D, FC51_Decode_STW(n_dev), "");
+          snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_4R, mqtt_data, (n_dev + 1), D_STW_D, FC51_Decode_STW(n_dev), "");
         } else {
-          snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_4G, mqtt_data, n_dev, D_STW_D, FC51_Decode_STW(n_dev), "");
+          snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_4G, mqtt_data, (n_dev + 1), D_STW_D, FC51_Decode_STW(n_dev), "");
         }
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_MAX_FRQ, MAX_FRQ[n_dev]/1000, "Hz");
-        float mav_Hz = MAV[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;        //MAV to Hz
-        char mav_Hzs[7];
-        dtostrfd(mav_Hz, 2, mav_Hzs);
-        float mav_Pc = MAV[n_dev] / FC51_1PERCENT;
-        char mav_Pcs[7];
-        dtostrfd(mav_Pc, 2, mav_Pcs);
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_7, mqtt_data, n_dev, D_MAV, mav_Pcs, "\%", mav_Hzs, "Hz");
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev, D_AOP, AOP[n_dev], "W");
-        float ref_Hz = REF[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;// REF to Hz
-        char ref_Hzs[7];
-        dtostrfd(ref_Hz, 2, ref_Hzs);
-        float ref_Pc = REF[n_dev] / FC51_1PERCENT;
-        char ref_Pcs[7];
-        dtostrfd(ref_Pc, 2, ref_Pcs);
-        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_7, mqtt_data, n_dev, D_REF, ref_Pcs, "\%", ref_Hzs, "Hz");
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, (n_dev + 1), D_MAX_FRQ, MAX_FRQ[n_dev] / 1000, D_UNIT_HERTZ);
+        float f_float1 = MAV[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT;        //MAV to Hz
+        char s_float1[7];
+        dtostrfd(f_float1, 2, s_float1); //mav_Hzs
+        float f_float2 = MAV[n_dev] / FC51_1PERCENT;
+        char s_float2[7];
+        dtostrfd(f_float2, 2, s_float2); //mav_pcs
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_7, mqtt_data, (n_dev + 1), D_MAV, s_float2, "\%", s_float1, D_UNIT_HERTZ);
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_INT, mqtt_data, n_dev + 1, D_AOP, AOP[n_dev], D_UNIT_WATT);
+        f_float1 = REF[n_dev] * MAX_FRQ[n_dev] / 1000 / FC51_100PERCENT; // REF to Hz
+        dtostrfd(f_float1, 2, s_float1); // ref_Hzs
+        f_float2 = REF[n_dev] / FC51_1PERCENT;
+        dtostrfd(f_float2, 2, s_float2); // ref_Pcs
+        snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_STR_7, mqtt_data, (n_dev + 1), D_REF, s_float2, "\%", s_float1, D_UNIT_HERTZ);
       }
     } else {
       snprintf_P(mqtt_data, sizeof(mqtt_data), HTTP_FC51_MODBUS_ERR, mqtt_data,"don't set TX and RX Pins");
@@ -575,15 +583,20 @@ void FC51_Show(boolean json) {
  * START/STOP
  * "SENSOR94,N,command" or "SENSOR94 N command"
  *    - command: STOP/START or OFF/ON or 1/2  sensor94 0,stop
- *    - N -  0...2
+ *    - N -  1...3  (ноль не может быть иначе неработае функция atoi)
  *    example: sensor94,1,stop   sensor94 1 OFF   sensor94,1,1
  * "SENSOR94,N,SPEED FRQ"
       FRQ - speed  from 0...100  persent
 \*********************************************************************************************/
+#define D_SPEED "SPEED"
+const char FC_STATUS[] PROGMEM = "FC%i_STATUS"; // 1 переменая
+const char FC_SPEED[] PROGMEM = "FC%i_SPEED";   // 1 переменая    <--- "FC%i_" D_SPEED;
+//#define D_ERROR "ERROR"
+
 bool FC51Command() {
   boolean serviced = false; // переменная для return
   uint8_t paramcount = 0; // количестdо полученных в команде параметров
-  uint8_t dev_id = 99;
+  uint8_t dev_id = 99; // на 1 больше n_dev
   if (XdrvMailbox.data_len > 0) { // проверяем что есть парамаметры
     paramcount = 1;
   } else {
@@ -602,111 +615,143 @@ bool FC51Command() {
   if (FC51_Point & 1) { //ПРОВЕРКА ТЕКУШИЙ СТАТУС ОПРОСА СОСТОЯНИЯ FC51_pooling, сделали запрос но не прочитали  
     FC51_pooling();
   }
+
+  char suffics[11];
   if (paramcount > 1) { // если команд больше 1, то вторым (от 0) номер устройства, в индексе 0 идентификатор сервиса
+    Settings.flag.mqtt_response=1; // разрешаем перезапись префикса
+    //FC1_STATUS
     dev_id = atoi(subStr(sub_string, XdrvMailbox.data, ",", 1)); // Function to return a substring defined by a delimiter at an index char *subStr(char *dest, char *str, const char *delim, int index)
-    if (dev_id >= FC51_DEVICES) { // проверка на правильный  номер устройства
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"ERROR\":\"Number devices not detected\"}}"), dev_id);
+    if (dev_id > FC51_DEVICES || dev_id == 0) { // проверка на правильный  номер устройства
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "\t" D_ERROR ": Number devices not detected\""));
       return serviced;
     }
-    if (CTW[dev_id]==0) { // проверка что устройство отзывается
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"ERROR\":\"devices OFFLINE\"}}"), dev_id);
+    if (CTW[dev_id-1]==0) { // проверка что устройство отзывается
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_ERROR ": devices " D_OFFLINE "\""), dev_id);
       return serviced;
     }
-    if (paramcount == 2) { //  sensor94 0 start 
-      uint16_t start_stop = CTW[dev_id]; 
+    if (paramcount == 2) { //  sensor94 1 start 
+      snprintf_P(suffics, sizeof(suffics), FC_STATUS, dev_id); //меняем MQTT суфикс на FC1_STATUS
+      uint16_t start_stop = CTW[dev_id-1]; 
       char c_str[7]; //6
       snprintf_P(c_str, sizeof(c_str), subStr(sub_string, XdrvMailbox.data, ",", 2));
       // Serial.print("c_str:[");                     //-
       // Serial.print(c_str);                         //-
       // Serial.println("]");                         //-
-      if (0==strcmp(c_str, "START") || 2 == atoi(c_str) || 0==strcmp(c_str, "ON")) { // -------- здесь включаем   sensor94 1,START    sensor94 1,2 sensor94 1,ON sensor94 1,on
+      if (0==strcmp(c_str, D_START) || 2 == atoi(c_str) || 0==strcmp(c_str, "ON")) { // D_ON-------- здесь включаем   sensor94 1,START    sensor94 1,2 sensor94 1,ON sensor94 1,on
         // Serial.println("-start-"); //
         start_stop |= (1 << 6);// пример Var |= (1 << 3) | (1 << 5);
-      }
-      else if (0==strcmp(c_str, "STOP") || 1 == atoi(c_str) || 0==strcmp(c_str, "OFF")) {// //  sensor94 1,STOP  sensor94 1,stop, sensor94 0,OFF sensor94 1 1 sensor94 0,qqqqq
+      } else if (0==strcmp(c_str, D_STOP) || 1 == atoi(c_str) || 0==strcmp(c_str, "OFF")) {// D_OFF//  sensor94 1,STOP  sensor94 1,stop, sensor94 0,OFF sensor94 1 1 sensor94 0,qqqqq
         // Serial.println("-stop-"); //
-        start_stop &= ~(1<<6);  // сбрасываем 6 бит пример Var &= ~((1 << 2) | (1 << 6));
+        start_stop &= ~(1<<6);  // сбрасываем 6 бит, пример Var &= ~((1 << 2) | (1 << 6));
+      } else if (0==strcmp(c_str, "TOGGLE") || 3 == atoi(c_str)) {// //  sensor94 1,TOGGLE  sensor94 1,TOGGLE, sensor94 0,TOGGLE sensor94 1 1 sensor94 0,qqqqq
+        start_stop ^= (1 << 6);      //TOGGLE  мнверсия бита
       } else {
         // Serial.println("-error-"); //
-        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"ERROR\":\"command:%s\"}}"), dev_id, c_str);
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_ERROR ":" D_LOG_COMMAND "<%s>\""), dev_id, c_str);
         return serviced;
       }
       // Serial.print("to ModbusWrReg start_stop:\t");  // debug
       // Serial.println(start_stop); // debug
-      if (start_stop != CTW[dev_id]) {
-        serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);
+      if (start_stop != CTW[dev_id-1]) {
+        serviced = ModbusWrReg(FC51_Addr[dev_id-1], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);
       } else {
         serviced=true;
       }
       if (serviced) {
-        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"%s\"}}"), dev_id, c_str);
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s"), c_str);
+        //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i_STATUS\":\"%s\"}}"), dev_id, c_str);
       } else {
-        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"ERROR\"}}"), dev_id);
+        //+snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("ERROR"));
       }
+      MqttPublishPrefixTopic_P(RESULT_OR_TELE, suffics, 3);
+      mqtt_data[0] = '\0';
       return serviced;
     }
   }
   if (paramcount > 2) {// sensor94 1 SPEED 20    sensor94 1 SPEED 29 sensor94 1 SPEED 100
-    if (0==strcmp(subStr(sub_string, XdrvMailbox.data, ",", 2), "SPEED")) { // если задается скорость в %
+    if (0==strcmp(subStr(sub_string, XdrvMailbox.data, ",", 2), D_SPEED)) { // если задается скорость в %
       uint16_t new_REF = atoi(subStr(sub_string, XdrvMailbox.data, ",", 3));
       if (new_REF <= 100) {// праверяем правильность скорости в %
         if (new_REF == 0) { //если выключили
-          if ((CTW[dev_id] & (1 << 6))) { // если  включен 
-            uint16_t start_stop = CTW[dev_id];
+          if ((CTW[dev_id-1] & (1 << 6))) { // если  включен 
+            uint16_t start_stop = CTW[dev_id-1];
             start_stop &= ~(1 << 6); // сбросили бит
-            serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);
+            serviced = ModbusWrReg(FC51_Addr[dev_id-1], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);
             if (serviced) {
-              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"%s\",\"SPEED\":0}}"), dev_id, "STOP");
+              //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"STATUS\":\"%s\",\"SPEED\":0}}"), dev_id, "OFF");
+              snprintf_P(suffics, sizeof(suffics), FC_STATUS, dev_id); //меняем MQTT суфикс на FC1_STATUS
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR(D_OFF));   // FC1_STATUS OFF
+              MqttPublishPrefixTopic_P(RESULT_OR_TELE, suffics, 3);
+              mqtt_data[0] = '\0';
+              snprintf_P(suffics, sizeof(suffics), FC_SPEED, dev_id);     //меняем MQTT суфикс на FC1_SPEED
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("0"));       // FC1_SPEED 0
+              MqttPublishPrefixTopic_P(RESULT_OR_TELE, suffics, 3);
+              mqtt_data[0] = '\0';
             } else {
-              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"ERROR\"}}"), dev_id);
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_SPEED ": " D_ERROR "\""), dev_id);
             }
           } else {
-            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"Was STOPPED!\",\"STATUS\":\"STOP\"}}"), dev_id); //
+            snprintf_P(suffics, sizeof(suffics), FC_STATUS, dev_id); //меняем MQTT суфикс на FC1_STATUS
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR(D_OFF));   // FC1_STATUS OFF
+            MqttPublishPrefixTopic_P(RESULT_OR_TELE, suffics, 3);
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_SPEED ": Was STOPPED!\""), dev_id);
+            //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"Was STOPPED!\",\"STATUS\":\"OFF\"}}"), dev_id); //
             serviced = true;
           }
         } else { // -------- здесь устанавливаем скорость   sensor94 1 SPEED 1 sensor94 1 SPEED 0    sensor94 1 SPEED 31     sensor94 1 SPEED 100
-          new_REF = new_REF * FC51_1PERCENT;
+          uint16_t fc_ref = new_REF * FC51_1PERCENT;
           // snprintf_P(log_data, sizeof(log_data), PSTR("new_REF: %i  <-->  REF:%i "), new_REF, REF[dev_id]);
           // Serial.println(log_data);
-          if (new_REF != REF[dev_id] || !(CTW[dev_id] & (1 << 6))) { // проверяем что она была изменена или не включен
-            serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_REF_ADDR, new_REF, FC51_REF_WORDS);
+          if (fc_ref != REF[dev_id-1] || !(CTW[dev_id-1] & (1 << 6))) { // проверяем что она была изменена или не включен
+            serviced = ModbusWrReg(FC51_Addr[dev_id - 1], WRITE_MODBUS_REGISTR, FC51_REF_ADDR, fc_ref, FC51_REF_WORDS);
           } else {
-            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"Not changed!\"}}"), dev_id);
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_SPEED ": Not changed!\""), dev_id);
             serviced=true;
           }
           // snprintf_P(log_data, sizeof(log_data), PSTR("serviced: %i"), serviced);
           // Serial.println(log_data);
           if (serviced) {
-            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":%i,\"STATUS\":"), dev_id, new_REF);
-            if (!(CTW[dev_id] & (1 << 6)))   { // если прошла  предварительная команда и выключен 
-              uint16_t start_stop = CTW[dev_id];
+            //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":%i,\"STATUS\":"), dev_id, new_REF);
+            snprintf_P(suffics, sizeof(suffics), FC_SPEED, dev_id); //меняем MQTT суфикс на FC1_SPEED
+            snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%i"), new_REF); // FC1_SPEED 34 (new_REF)
+            MqttPublishPrefixTopic_P(RESULT_OR_TELE, suffics, 3);
+            snprintf_P(suffics, sizeof(suffics), FC_STATUS, dev_id); //меняем MQTT суфикс на FC1_STATUS
+            if (!(CTW[dev_id-1] & (1 << 6)))   { // если прошла  предварительная команда и выключен 
+              uint16_t start_stop = CTW[dev_id-1];
               start_stop |= (1 << 6);
               //Serial.println("Ready to On");       //-
-              serviced = ModbusWrReg(FC51_Addr[dev_id], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);  //  -- отключаем на время отладки
+              serviced = ModbusWrReg(FC51_Addr[dev_id-1], WRITE_MODBUS_REGISTR, FC51_CTW_ADDR, start_stop, FC51_CTW_WORDS);  //  -- отключаем на время отладки
               if (serviced) {
-                snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "START");
+                //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "ON");
+                snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR(D_ON)); // FC1_STATUS OFF
               } else {
-                snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "STOP");
+                //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "OFF");
+                snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR(D_OFF));   // FC1_STATUS OFF
               }
             } else {
-              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "START");
+              //snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s\"%s\"}}"), mqtt_data, "ON");
+              snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR(D_ON)); // FC1_STATUS OFF
             }
+            MqttPublishPrefixTopic_P(RESULT_OR_TELE, suffics, 3);
+            mqtt_data[0] = '\0';
           }
         }
         if (!serviced) { // проверяем что все закончиось хорошо
           // snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"FC51\":{\"ID_%i\":{\"SPEED\":\"%d\"}}}"), dev_id, new_REF);
-          snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"ERROR\"}}"), dev_id);
+          snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_SPEED ":" D_ERROR "\""), dev_id);
         }
       } else {
-        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"SPEED\":\"OUT RANGE %i\"}}"), dev_id, new_REF);
+        snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_SPEED ": OUT RANGE %i\""), dev_id, new_REF);
       } // <100
       return serviced;
     } else { // команада не распознана
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("{\"" D_FC51 "%i\":{\"COMMAND\":\"ERROR\"}}"), dev_id);
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("\"" D_FC51 "%i \t" D_LOG_COMMAND ": " D_ERROR "\""), dev_id);
     }// SPEED
   }   // paramcount > 2
   return serviced;
 } // FC51Command()
+// mqtt_data[0] = '\0';
+
 
 boolean ModbusWrReg(uint8_t s_address, uint8_t s_function, uint16_t s_reg, uint16_t s_data, uint8_t s_words) { //  sensor94 0 stop  sensor94 1 SPEED 1  sensor94 1 SPEED 0
   uint8_t repeat = 1;
@@ -722,7 +767,7 @@ boolean ModbusWrReg(uint8_t s_address, uint8_t s_function, uint16_t s_reg, uint1
     }
   }
     // Serial.println(temp_);
-  snprintf_P(log_data, sizeof(log_data), PSTR("")); // clear !!!
+  log_data[0] = '\0'; // clear !!! /
   while (repeat <= MODBUS_COMMAND_REPEAT && status == false ) {
     while (MODBUS_Serial->available() > 0) { // read serial if any old data is available
       MODBUS_Serial->read();
@@ -744,7 +789,7 @@ boolean ModbusWrReg(uint8_t s_address, uint8_t s_function, uint16_t s_reg, uint1
     }
     else {
       Serial.println(log_data);
-      snprintf_P(log_data, sizeof(log_data), PSTR("\nCOMMAND NOT Valid: ADDR:%i\tFUNC:%i\tREG:%i\tRepeat:%i\tdelay_read:%i\t TX/RX DATA:%i/%i"), s_address, s_function, s_reg, repeat, delay_read, s_data, r_data);
+      snprintf_P(log_data, sizeof(log_data), PSTR("\n" D_COMMAND "NOT Valid: ADDR:%i\tFUNC:%i\tREG:%i\tRepeat:%i\tdelay_read:%i\t TX/RX DATA:%i/%i"), s_address, s_function, s_reg, repeat, delay_read, s_data, r_data);
       Serial.println(log_data);
     }
     ++repeat;

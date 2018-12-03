@@ -412,7 +412,7 @@ itch LivingRoom_Light "Living Room Light" <light> (LR,gLight)
 
 работает из брокера
 топик cmnd/boiler/POWER1 или cmnd/boiler/POWER2
-зданчение даты 1 или 0 а так же ON или OFF
+зданчение параметра 1 или 0 а так же ON или OFF
 
 возращает
 20:44:27 MQT: stat/boiler/RESULT = {"POWER2":"ON"}
