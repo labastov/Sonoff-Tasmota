@@ -1,7 +1,7 @@
 /*
   xdrv_99_debug.ino - debug support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,9 +26,16 @@
 #endif  // DEBUG_THEO
 
 #ifdef USE_DEBUG_DRIVER
+/*********************************************************************************************\
+ * Virtual debugging support - Part1
+ *
+ * Needs file zzzz_debug.ino due to DEFINE processing
+\*********************************************************************************************/
+
+#define XDRV_99             99
 
 #ifndef CPU_LOAD_CHECK
-#define CPU_LOAD_CHECK       1                 // Seconds between each CPU_LOAD log
+#define CPU_LOAD_CHECK      1                 // Seconds between each CPU_LOAD log
 #endif
 
 /*********************************************************************************************\
@@ -45,9 +52,15 @@
 #define D_CMND_FREEMEM   "FreeMem"
 #define D_CMND_RTCDUMP   "RtcDump"
 #define D_CMND_HELP      "Help"
+#define D_CMND_SETSENSOR "SetSensor"
+#define D_CMND_FLASHMODE "FlashMode"
 
-enum DebugCommands { CMND_CFGDUMP, CMND_CFGPEEK, CMND_CFGPOKE, CMND_CFGSHOW, CMND_CFGXOR, CMND_CPUCHECK, CMND_EXCEPTION, CMND_FREEMEM, CMND_RTCDUMP, CMND_HELP };
-const char kDebugCommands[] PROGMEM = D_CMND_CFGDUMP "|" D_CMND_CFGPEEK "|" D_CMND_CFGPOKE "|" D_CMND_CFGSHOW "|" D_CMND_CFGXOR "|" D_CMND_CPUCHECK "|" D_CMND_EXCEPTION "|" D_CMND_FREEMEM "|" D_CMND_RTCDUMP "|" D_CMND_HELP;
+enum DebugCommands {
+  CMND_CFGDUMP, CMND_CFGPEEK, CMND_CFGPOKE, CMND_CFGSHOW, CMND_CFGXOR,
+  CMND_CPUCHECK, CMND_EXCEPTION, CMND_FREEMEM, CMND_RTCDUMP, CMND_SETSENSOR, CMND_FLASHMODE, CMND_HELP };
+const char kDebugCommands[] PROGMEM =
+  D_CMND_CFGDUMP "|" D_CMND_CFGPEEK "|" D_CMND_CFGPOKE "|" D_CMND_CFGSHOW "|" D_CMND_CFGXOR "|"
+  D_CMND_CPUCHECK "|" D_CMND_EXCEPTION "|" D_CMND_FREEMEM "|" D_CMND_RTCDUMP "|" D_CMND_SETSENSOR "|" D_CMND_FLASHMODE "|" D_CMND_HELP;
 
 uint32_t CPU_loops = 0;
 uint32_t CPU_last_millis = 0;
@@ -58,7 +71,7 @@ uint8_t CPU_show_freemem = 0;
 /*******************************************************************************************/
 
 #ifdef DEBUG_THEO
-void ExceptionTest(byte type)
+void ExceptionTest(uint8_t type)
 {
 /*
 Exception (28):
@@ -126,7 +139,7 @@ Decoding 14 results
 
 /*******************************************************************************************/
 
-void CpuLoadLoop()
+void CpuLoadLoop(void)
 {
   CPU_last_loop_time = millis();
   if (CPU_load_check && CPU_last_millis) {
@@ -159,7 +172,7 @@ extern "C" {
   extern cont_t g_cont;
 }
 
-void DebugFreeMem()
+void DebugFreeMem(void)
 {
   register uint32_t *sp asm("a1");
 
@@ -181,7 +194,7 @@ extern "C" {
   extern cont_t* g_pcont;
 }
 
-void DebugFreeMem()
+void DebugFreeMem(void)
 {
   register uint32_t *sp asm("a1");
 
@@ -321,11 +334,11 @@ void DebugCfgPeek(char* parms)
   uint32_t data32 = (buffer[address +3] << 24) + (buffer[address +2] << 16) + data16;
 
   snprintf_P(log_data, sizeof(log_data), PSTR("%03X:"), address);
-  for (byte i = 0; i < 4; i++) {
+  for (uint8_t i = 0; i < 4; i++) {
     snprintf_P(log_data, sizeof(log_data), PSTR("%s %02X"), log_data, buffer[address +i]);
   }
   snprintf_P(log_data, sizeof(log_data), PSTR("%s |"), log_data);
-  for (byte i = 0; i < 4; i++) {
+  for (uint8_t i = 0; i < 4; i++) {
     snprintf_P(log_data, sizeof(log_data), PSTR("%s%c"), log_data, ((buffer[address +i] > 0x20) && (buffer[address +i] < 0x7F)) ? (char)buffer[address +i] : ' ');
   }
   snprintf_P(log_data, sizeof(log_data), PSTR("%s| 0x%02X (%d), 0x%04X (%d), 0x%0LX (%lu)"), log_data, data8, data8, data16, data16, data32, data32);
@@ -346,7 +359,7 @@ void DebugCfgPoke(char* parms)
   uint32_t data32 = (buffer[address +3] << 24) + (buffer[address +2] << 16) + (buffer[address +1] << 8) + buffer[address];
 
   uint8_t *nbuffer = (uint8_t *) &data;
-  for (byte i = 0; i < 4; i++) { buffer[address +i] = nbuffer[+i]; }
+  for (uint8_t i = 0; i < 4; i++) { buffer[address +i] = nbuffer[+i]; }
 
   uint32_t ndata32 = (buffer[address +3] << 24) + (buffer[address +2] << 16) + (buffer[address +1] << 8) + buffer[address];
 
@@ -401,12 +414,29 @@ void DebugCfgShow(uint8_t more)
   }
 }
 
+void SetFlashMode(uint8_t mode)
+{
+  uint8_t *_buffer;
+  uint32_t address;
+
+  address = 0;
+  _buffer = new uint8_t[FLASH_SECTOR_SIZE];
+
+  if (ESP.flashRead(address, (uint32_t*)_buffer, FLASH_SECTOR_SIZE)) {
+    if (_buffer[2] != mode) {  // DOUT
+      _buffer[2] = mode;
+      if (ESP.flashEraseSector(address / FLASH_SECTOR_SIZE)) ESP.flashWrite(address, (uint32_t*)_buffer, FLASH_SECTOR_SIZE);
+    }
+  }
+  delete[] _buffer;
+}
+
 /*******************************************************************************************/
 
-boolean DebugCommand()
+bool DebugCommand(void)
 {
   char command[CMDSZ];
-  boolean serviced = true;
+  bool serviced = true;
 
   int command_code = GetCommandCode(command, sizeof(command), XdrvMailbox.topic, kDebugCommands);
   if (-1 == command_code) {
@@ -464,6 +494,19 @@ boolean DebugCommand()
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_NVALUE, command, CPU_show_freemem);
   }
+  else if ((CMND_SETSENSOR == command_code) && (XdrvMailbox.index < MAX_XSNS_DRIVERS)) {
+    if ((XdrvMailbox.payload >= 0) && XsnsPresent(XdrvMailbox.index)) {
+      bitWrite(Settings.sensors[XdrvMailbox.index / 32], XdrvMailbox.index % 32, XdrvMailbox.payload &1);
+      if (1 == XdrvMailbox.payload) { restart_flag = 2; }  // To safely re-enable a sensor currently most sensor need to follow complete restart init cycle
+    }
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_XVALUE, command, XsnsGetSensors().c_str());
+  }
+  else if (CMND_FLASHMODE == command_code) {
+    if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 3)) {
+      SetFlashMode(XdrvMailbox.payload);
+    }
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_NVALUE, command, ESP.getFlashChipMode());
+  }
   else serviced = false;  // Unknown command
 
   return serviced;
@@ -473,11 +516,9 @@ boolean DebugCommand()
  * Interface
 \*********************************************************************************************/
 
-#define XDRV_99
-
-boolean Xdrv99(byte function)
+bool Xdrv99(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   switch (function) {
     case FUNC_PRE_INIT:

@@ -1,7 +1,7 @@
 /*
   xdrv_13_display.ino - Display support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,8 +20,10 @@
 #if defined(USE_I2C) || defined(USE_SPI)
 #ifdef USE_DISPLAY
 
+#define XDRV_13                13
+
 #define DISPLAY_MAX_DRIVERS    16           // Max number of display drivers/models supported by xdsp_interface.ino
-#define DISPLAY_MAX_COLS       40           // Max number of columns allowed with command DisplayCols
+#define DISPLAY_MAX_COLS       44           // Max number of columns allowed with command DisplayCols
 #define DISPLAY_MAX_ROWS       32           // Max number of lines allowed with command DisplayRows
 
 #define DISPLAY_LOG_ROWS       32           // Number of lines in display log buffer
@@ -104,7 +106,7 @@ void DisplayInit(uint8_t mode)
   XdspCall(FUNC_DISPLAY_INIT);
 }
 
-void DisplayClear()
+void DisplayClear(void)
 {
   XdspCall(FUNC_DISPLAY_CLEAR);
 }
@@ -175,7 +177,7 @@ void DisplayDrawFilledRectangle(uint16_t x, uint16_t y, uint16_t x2, uint16_t y2
   XdspCall(FUNC_DISPLAY_FILL_RECTANGLE);
 }
 
-void DisplayDrawFrame()
+void DisplayDrawFrame(void)
 {
   XdspCall(FUNC_DISPLAY_DRAW_FRAME);
 }
@@ -252,7 +254,7 @@ uint8_t atoiV(char *cp, uint16_t *res)
 
 #define DISPLAY_BUFFER_COLS    128          // Max number of characters in linebuf
 
-void DisplayText()
+void DisplayText(void)
 {
   uint8_t lpos;
   uint8_t escape = 0;
@@ -425,13 +427,18 @@ void DisplayText()
             cp += var;
             DisplayDrawFilledRectangle(disp_xpos, disp_ypos, temp, temp1, color);
             break;
-          case 't': {
+          case 't':
             if (dp < (linebuf + DISPLAY_BUFFER_COLS) -5) {
-              snprintf_P(dp, 5, PSTR("%02d" D_HOUR_MINUTE_SEPARATOR "%02d"), RtcTime.hour, RtcTime.minute);
+              snprintf_P(dp, 6, PSTR("%02d" D_HOUR_MINUTE_SEPARATOR "%02d"), RtcTime.hour, RtcTime.minute);
               dp += 5;
             }
             break;
-          }
+          case 'T':
+            if (dp < (linebuf + DISPLAY_BUFFER_COLS) -8) {
+              snprintf_P(dp, 9, PSTR("%02d" D_MONTH_DAY_SEPARATOR "%02d" D_YEAR_MONTH_SEPARATOR "%02d"), RtcTime.day_of_month, RtcTime.month, RtcTime.year%2000);
+              dp += 8;
+            }
+            break;
           case 'd':
             // force draw grafics buffer
             DisplayDrawFrame();
@@ -485,19 +492,19 @@ void DisplayText()
 
 #ifdef USE_DISPLAY_MODES1TO5
 
-void DisplayClearScreenBuffer()
+void DisplayClearScreenBuffer(void)
 {
   if (disp_screen_buffer_cols) {
-    for (byte i = 0; i < disp_screen_buffer_rows; i++) {
+    for (uint8_t i = 0; i < disp_screen_buffer_rows; i++) {
       memset(disp_screen_buffer[i], 0, disp_screen_buffer_cols);
     }
   }
 }
 
-void DisplayFreeScreenBuffer()
+void DisplayFreeScreenBuffer(void)
 {
   if (disp_screen_buffer != NULL) {
-    for (byte i = 0; i < disp_screen_buffer_rows; i++) {
+    for (uint8_t i = 0; i < disp_screen_buffer_rows; i++) {
       if (disp_screen_buffer[i] != NULL) { free(disp_screen_buffer[i]); }
     }
     free(disp_screen_buffer);
@@ -506,13 +513,13 @@ void DisplayFreeScreenBuffer()
   }
 }
 
-void DisplayAllocScreenBuffer()
+void DisplayAllocScreenBuffer(void)
 {
   if (!disp_screen_buffer_cols) {
     disp_screen_buffer_rows = Settings.display_rows;
     disp_screen_buffer = (char**)malloc(sizeof(*disp_screen_buffer) * disp_screen_buffer_rows);
     if (disp_screen_buffer != NULL) {
-      for (byte i = 0; i < disp_screen_buffer_rows; i++) {
+      for (uint8_t i = 0; i < disp_screen_buffer_rows; i++) {
         disp_screen_buffer[i] = (char*)malloc(sizeof(*disp_screen_buffer[i]) * (Settings.display_cols[0] +1));
         if (disp_screen_buffer[i] == NULL) {
           DisplayFreeScreenBuffer();
@@ -527,7 +534,7 @@ void DisplayAllocScreenBuffer()
   }
 }
 
-void DisplayReAllocScreenBuffer()
+void DisplayReAllocScreenBuffer(void)
 {
   DisplayFreeScreenBuffer();
   DisplayAllocScreenBuffer();
@@ -535,7 +542,7 @@ void DisplayReAllocScreenBuffer()
 
 void DisplayFillScreen(uint8_t line)
 {
-  byte len = disp_screen_buffer_cols - strlen(disp_screen_buffer[line]);
+  uint8_t len = disp_screen_buffer_cols - strlen(disp_screen_buffer[line]);
   if (len) {
     memset(disp_screen_buffer[line] + strlen(disp_screen_buffer[line]), 0x20, len);
     disp_screen_buffer[line][disp_screen_buffer_cols -1] = 0;
@@ -544,19 +551,19 @@ void DisplayFillScreen(uint8_t line)
 
 /*-------------------------------------------------------------------------------------------*/
 
-void DisplayClearLogBuffer()
+void DisplayClearLogBuffer(void)
 {
   if (disp_log_buffer_cols) {
-    for (byte i = 0; i < DISPLAY_LOG_ROWS; i++) {
+    for (uint8_t i = 0; i < DISPLAY_LOG_ROWS; i++) {
       memset(disp_log_buffer[i], 0, disp_log_buffer_cols);
     }
   }
 }
 
-void DisplayFreeLogBuffer()
+void DisplayFreeLogBuffer(void)
 {
   if (disp_log_buffer != NULL) {
-    for (byte i = 0; i < DISPLAY_LOG_ROWS; i++) {
+    for (uint8_t i = 0; i < DISPLAY_LOG_ROWS; i++) {
       if (disp_log_buffer[i] != NULL) { free(disp_log_buffer[i]); }
     }
     free(disp_log_buffer);
@@ -564,12 +571,12 @@ void DisplayFreeLogBuffer()
   }
 }
 
-void DisplayAllocLogBuffer()
+void DisplayAllocLogBuffer(void)
 {
   if (!disp_log_buffer_cols) {
     disp_log_buffer = (char**)malloc(sizeof(*disp_log_buffer) * DISPLAY_LOG_ROWS);
     if (disp_log_buffer != NULL) {
-      for (byte i = 0; i < DISPLAY_LOG_ROWS; i++) {
+      for (uint8_t i = 0; i < DISPLAY_LOG_ROWS; i++) {
         disp_log_buffer[i] = (char*)malloc(sizeof(*disp_log_buffer[i]) * (Settings.display_cols[0] +1));
         if (disp_log_buffer[i] == NULL) {
           DisplayFreeLogBuffer();
@@ -584,7 +591,7 @@ void DisplayAllocLogBuffer()
   }
 }
 
-void DisplayReAllocLogBuffer()
+void DisplayReAllocLogBuffer(void)
 {
   DisplayFreeLogBuffer();
   DisplayAllocLogBuffer();
@@ -615,7 +622,7 @@ char* DisplayLogBuffer(char temp_code)
   return result;
 }
 
-void DisplayLogBufferInit()
+void DisplayLogBufferInit(void)
 {
   if (Settings.display_mode) {
     disp_log_buffer_idx = 0;
@@ -627,7 +634,7 @@ void DisplayLogBufferInit()
     DisplayReAllocLogBuffer();
 
     char buffer[40];
-    snprintf_P(buffer, sizeof(buffer), PSTR(D_VERSION " %s"), my_version);
+    snprintf_P(buffer, sizeof(buffer), PSTR(D_VERSION " %s%s"), my_version, my_image);
     DisplayLogBufferAdd(buffer);
     snprintf_P(buffer, sizeof(buffer), PSTR("Display mode %d"), Settings.display_mode);
     DisplayLogBufferAdd(buffer);
@@ -638,7 +645,7 @@ void DisplayLogBufferInit()
     DisplayLogBufferAdd(buffer);
     snprintf_P(buffer, sizeof(buffer), PSTR(D_JSON_MAC " %s"), WiFi.macAddress().c_str());
     DisplayLogBufferAdd(buffer);
-    if (!global_state.wifi_down && (static_cast<uint32_t>(WiFi.localIP()) != 0)) {
+    if (!global_state.wifi_down) {
       snprintf_P(buffer, sizeof(buffer), PSTR("IP %s"), WiFi.localIP().toString().c_str());
       DisplayLogBufferAdd(buffer);
       snprintf_P(buffer, sizeof(buffer), PSTR(D_JSON_RSSI " %d%%"), WifiGetRssiAsQuality(WiFi.RSSI()));
@@ -663,7 +670,8 @@ enum SensorQuantity {
   JSON_CURRENT,
   JSON_VOLTAGE,
   JSON_POWERUSAGE,
-  JSON_CO2 };
+  JSON_CO2,
+  JSON_FREQUENCY };
 const char kSensorQuantity[] PROGMEM =
   D_JSON_TEMPERATURE "|"                                                        // degrees
   D_JSON_HUMIDITY "|" D_JSON_LIGHT "|" D_JSON_NOISE "|" D_JSON_AIRQUALITY "|"   // percentage
@@ -676,9 +684,10 @@ const char kSensorQuantity[] PROGMEM =
   D_JSON_CURRENT "|"                                                            // Ampere
   D_JSON_VOLTAGE "|"                                                            // Volt
   D_JSON_POWERUSAGE "|"                                                         // Watt
-  D_JSON_CO2 ;                                                                  // ppm
+  D_JSON_CO2 "|"                                                                // ppm
+  D_JSON_FREQUENCY ;                                                            // Hz
 
-void DisplayJsonValue(const char *topic, const char* device, const char* mkey, const char* value)
+void DisplayJsonValue(const char* topic, const char* device, const char* mkey, const char* value)
 {
   char quantity[TOPSZ];
   char buffer[Settings.display_cols[0] +1];
@@ -690,7 +699,7 @@ void DisplayJsonValue(const char *topic, const char* device, const char* mkey, c
 
   memset(spaces, 0x20, sizeof(spaces));
   spaces[sizeof(spaces) -1] = '\0';
-  snprintf_P(source, sizeof(source), PSTR("%s/%s%s"), topic, mkey, spaces);  // pow1/Voltage
+  snprintf_P(source, sizeof(source), PSTR("%s%s%s%s"), topic, (strlen(topic))?"/":"", mkey, spaces);  // pow1/Voltage or Voltage if topic is empty (local sensor)
 
   int quantity_code = GetCommandCode(quantity, sizeof(quantity), mkey, kSensorQuantity);
   if ((-1 == quantity_code) || !strcmp_P(mkey, S_RSLT_POWER)) {  // Ok: Power, Not ok: POWER
@@ -731,6 +740,9 @@ void DisplayJsonValue(const char *topic, const char* device, const char* mkey, c
   }
   else if (JSON_CO2 == quantity_code) {
     snprintf_P(svalue, sizeof(svalue), PSTR("%s" D_UNIT_PARTS_PER_MILLION), value);
+  }
+  else if (JSON_FREQUENCY == quantity_code) {
+    snprintf_P(svalue, sizeof(svalue), PSTR("%s" D_UNIT_HERTZ), value);
   }
   snprintf_P(buffer, sizeof(buffer), PSTR("%s %s"), source, svalue);
 
@@ -778,20 +790,29 @@ void DisplayAnalyzeJson(char *topic, char *json)
           if (value2.is<JsonObject>()) {
             JsonObject& Object3 = value2;
             for (JsonObject::iterator it3 = Object3.begin(); it3 != Object3.end(); ++it3) {
-              DisplayJsonValue(topic, it->key, it3->key, it3->value.as<const char*>());  // Sensor 56%
+              const char* value = it3->value;
+              if (value != nullptr) {  // "DHT11":{"Temperature":null,"Humidity":null} - ignore null as it will raise exception 28
+                DisplayJsonValue(topic, it->key, it3->key, value);  // Sensor 56%
+              }
             }
           } else {
-            DisplayJsonValue(topic, it->key, it2->key, it2->value.as<const char*>());  // Sensor  56%
+            const char* value = it2->value;
+            if (value != nullptr) {
+              DisplayJsonValue(topic, it->key, it2->key, value);  // Sensor  56%
+            }
           }
         }
       } else {
-        DisplayJsonValue(topic, it->key, it->key, it->value.as<const char*>());  // Topic  56%
+        const char* value = it->value;
+        if (value != nullptr) {
+          DisplayJsonValue(topic, it->key, it->key, value);  // Topic  56%
+        }
       }
     }
   }
 }
 
-void DisplayMqttSubscribe()
+void DisplayMqttSubscribe(void)
 {
 /* Subscribe to tele messages only
  * Supports the following FullTopic formats
@@ -812,11 +833,11 @@ void DisplayMqttSubscribe()
       if (!strcmp_P(tp, PSTR(MQTT_TOKEN_PREFIX))) {
         break;
       }
-      strncat_P(ntopic, PSTR("+/"), sizeof(ntopic));           // Add single-level wildcards
+      strncat_P(ntopic, PSTR("+/"), sizeof(ntopic) - strlen(ntopic) -1);           // Add single-level wildcards
       tp = strtok(NULL, "/");
     }
-    strncat(ntopic, Settings.mqtt_prefix[2], sizeof(ntopic));  // Subscribe to tele messages
-    strncat_P(ntopic, PSTR("/#"), sizeof(ntopic));             // Add multi-level wildcard
+    strncat(ntopic, Settings.mqtt_prefix[2], sizeof(ntopic) - strlen(ntopic) -1);  // Subscribe to tele messages
+    strncat_P(ntopic, PSTR("/#"), sizeof(ntopic) - strlen(ntopic) -1);             // Add multi-level wildcard
     MqttSubscribe(ntopic);
     disp_subscribed = 1;
   } else {
@@ -824,7 +845,7 @@ void DisplayMqttSubscribe()
   }
 }
 
-boolean DisplayMqttData()
+bool DisplayMqttData(void)
 {
   if (disp_subscribed) {
     char stopic[TOPSZ];
@@ -843,10 +864,12 @@ boolean DisplayMqttData()
   return false;
 }
 
-void DisplayLocalSensor()
+void DisplayLocalSensor(void)
 {
   if ((Settings.display_mode &0x02) && (0 == tele_period)) {
-    DisplayAnalyzeJson(mqtt_topic, mqtt_data);
+    char no_topic[1] = { 0 };
+//    DisplayAnalyzeJson(mqtt_topic, mqtt_data);  // Add local topic
+    DisplayAnalyzeJson(no_topic, mqtt_data);    // Discard any topic
   }
 }
 
@@ -856,7 +879,7 @@ void DisplayLocalSensor()
  * Public
 \*********************************************************************************************/
 
-void DisplayInitDriver()
+void DisplayInitDriver(void)
 {
   XdspCall(FUNC_DISPLAY_INIT_DRIVER);
 
@@ -875,7 +898,7 @@ void DisplayInitDriver()
   }
 }
 
-void DisplaySetPower()
+void DisplaySetPower(void)
 {
   disp_power = bitRead(XdrvMailbox.index, disp_device -1);
   if (Settings.display_model) {
@@ -887,10 +910,10 @@ void DisplaySetPower()
  * Commands
 \*********************************************************************************************/
 
-boolean DisplayCommand()
+bool DisplayCommand(void)
 {
   char command [CMDSZ];
-  boolean serviced = true;
+  bool serviced = true;
   uint8_t disp_len = strlen(D_CMND_DISPLAY);  // Prep for string length change
 
   if (!strncasecmp_P(XdrvMailbox.topic, PSTR(D_CMND_DISPLAY), disp_len)) {  // Prefix
@@ -1055,13 +1078,11 @@ boolean DisplayCommand()
  * Interface
 \*********************************************************************************************/
 
-#define XDRV_13
-
-boolean Xdrv13(byte function)
+bool Xdrv13(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
-  if ((i2c_flg || spi_flg) && XdspPresent()) {
+  if ((i2c_flg || spi_flg || soft_spi_flg) && XdspPresent()) {
     switch (function) {
       case FUNC_PRE_INIT:
         DisplayInitDriver();

@@ -1,7 +1,7 @@
 /*
   xdsp_03_matrix.ino - Display 8x8 matrix support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends and Adafruit
+  Copyright (C) 2019  Theo Arends and Adafruit
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,23 +36,25 @@ uint8_t mtx_counter = 0;
 int16_t mtx_x = 0;
 int16_t mtx_y = 0;
 
-char mtx_buffer[MTX_MAX_SCREEN_BUFFER];
+//char mtx_buffer[MTX_MAX_SCREEN_BUFFER];
+char *mtx_buffer = NULL;
+
 uint8_t mtx_mode = 0;
 uint8_t mtx_loop = 0;
 uint8_t mtx_done = 0;
 
 /*********************************************************************************************/
 
-void MatrixWrite()
+void MatrixWrite(void)
 {
-  for (byte i = 0; i < mtx_matrices; i++) {
+  for (uint8_t i = 0; i < mtx_matrices; i++) {
     matrix[i]->writeDisplay();
   }
 }
 
-void MatrixClear()
+void MatrixClear(void)
 {
-  for (byte i = 0; i < mtx_matrices; i++) {
+  for (uint8_t i = 0; i < mtx_matrices; i++) {
     matrix[i]->clear();
   }
   MatrixWrite();
@@ -60,7 +62,7 @@ void MatrixClear()
 
 void MatrixFixed(char* txt)
 {
-  for (byte i = 0; i < mtx_matrices; i++) {
+  for (uint8_t i = 0; i < mtx_matrices; i++) {
     matrix[i]->clear();
     matrix[i]->setCursor(-i *8, 0);
     matrix[i]->print(txt);
@@ -75,7 +77,7 @@ void MatrixCenter(char* txt)
 
   int len = strlen(txt);
   offset = (len < 8) ? offset = ((mtx_matrices *8) - (len *6)) / 2 : 0;
-  for (byte i = 0; i < mtx_matrices; i++) {
+  for (uint8_t i = 0; i < mtx_matrices; i++) {
     matrix[i]->clear();
     matrix[i]->setCursor(-(i *8)+offset, 0);
     matrix[i]->print(txt);
@@ -100,7 +102,7 @@ void MatrixScrollLeft(char* txt, int loop)
   disp_refresh--;
     if (!disp_refresh) {
       disp_refresh = Settings.display_refresh;
-      for (byte i = 0; i < mtx_matrices; i++) {
+      for (uint8_t i = 0; i < mtx_matrices; i++) {
         matrix[i]->clear();
         matrix[i]->setCursor(mtx_x - i *8, 0);
         matrix[i]->print(txt);
@@ -143,9 +145,9 @@ void MatrixScrollUp(char* txt, int loop)
         words[wordcounter++] = p;
         p = strtok(NULL, separators);
       }
-      for (byte i = 0; i < mtx_matrices; i++) {
+      for (uint8_t i = 0; i < mtx_matrices; i++) {
         matrix[i]->clear();
-        for (byte j = 0; j < wordcounter; j++) {
+        for (uint8_t j = 0; j < wordcounter; j++) {
           matrix[i]->setCursor(-i *8, mtx_y + (j *8));
           matrix[i]->println(words[j]);
         }
@@ -166,9 +168,9 @@ void MatrixScrollUp(char* txt, int loop)
 
 /*********************************************************************************************/
 
-void MatrixInitMode()
+void MatrixInitMode(void)
 {
-  for (byte i = 0; i < mtx_matrices; i++) {
+  for (uint8_t i = 0; i < mtx_matrices; i++) {
     matrix[i]->setRotation(Settings.display_rotate);  // 1
     matrix[i]->setBrightness(Settings.display_dimmer);
     matrix[i]->blinkRate(0);               // 0 - 3
@@ -192,37 +194,40 @@ void MatrixInit(uint8_t mode)
   }
 }
 
-void MatrixInitDriver()
+void MatrixInitDriver(void)
 {
-  if (!Settings.display_model) {
-    if (I2cDevice(Settings.display_address[1])) {
-      Settings.display_model = XDSP_03;
-    }
-  }
-
-  if (XDSP_03 == Settings.display_model) {
-    mtx_state = 1;
-    for (mtx_matrices = 0; mtx_matrices < 8; mtx_matrices++) {
-      if (Settings.display_address[mtx_matrices]) {
-        matrix[mtx_matrices] = new Adafruit_8x8matrix();
-        matrix[mtx_matrices]->begin(Settings.display_address[mtx_matrices]);
-      } else {
-        break;
+  mtx_buffer = (char*)(malloc(MTX_MAX_SCREEN_BUFFER));
+  if (mtx_buffer != NULL) {
+    if (!Settings.display_model) {
+      if (I2cDevice(Settings.display_address[1])) {
+        Settings.display_model = XDSP_03;
       }
     }
 
-    MatrixInitMode();
+    if (XDSP_03 == Settings.display_model) {
+      mtx_state = 1;
+      for (mtx_matrices = 0; mtx_matrices < 8; mtx_matrices++) {
+        if (Settings.display_address[mtx_matrices]) {
+          matrix[mtx_matrices] = new Adafruit_8x8matrix();
+          matrix[mtx_matrices]->begin(Settings.display_address[mtx_matrices]);
+        } else {
+          break;
+        }
+      }
+
+      MatrixInitMode();
+    }
   }
 }
 
-void MatrixOnOff()
+void MatrixOnOff(void)
 {
   if (!disp_power) { MatrixClear(); }
 }
 
 void MatrixDrawStringAt(uint16_t x, uint16_t y, char *str, uint16_t color, uint8_t flag)
 {
-  snprintf(mtx_buffer, sizeof(mtx_buffer), str);
+  snprintf(mtx_buffer, MTX_MAX_SCREEN_BUFFER, str);
   mtx_mode = x &1;  // Use x for selecting scroll up (0) or scroll left (1)
   mtx_loop = y &1;  // Use y for selecting no loop (0) or loop (1)
   if (!mtx_state) { mtx_state = 1; }
@@ -251,7 +256,7 @@ void MatrixPrintLog(uint8_t direction)
           space = 0;
         }
         if (space < 2) {
-          strncat(mtx_buffer, (const char*)txt +i, 1);
+          strncat(mtx_buffer, (const char*)txt +i, (strlen(mtx_buffer) < MTX_MAX_SCREEN_BUFFER -1) ? 1 : 0);
         }
         i++;
       }
@@ -278,7 +283,7 @@ void MatrixPrintLog(uint8_t direction)
 
 #endif  // USE_DISPLAY_MODES1TO5
 
-void MatrixRefresh()  // Every second
+void MatrixRefresh(void)  // Every second
 {
   if (disp_power) {
     switch (Settings.display_mode) {
@@ -322,9 +327,9 @@ void MatrixRefresh()  // Every second
  * Interface
 \*********************************************************************************************/
 
-boolean Xdsp03(byte function)
+bool Xdsp03(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   if (i2c_flg) {
     if (FUNC_DISPLAY_INIT_DRIVER == function) {

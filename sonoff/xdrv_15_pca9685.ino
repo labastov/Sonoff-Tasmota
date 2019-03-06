@@ -1,7 +1,7 @@
 /*
   xdrv_15_pca9685.ino - Support for I2C PCA9685 12bit 16 pin hardware PWM driver
 
-  Copyright (C) 2018  Andre Thomas and Theo Arends
+  Copyright (C) 2019  Andre Thomas and Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -103,8 +103,8 @@ void PCA9685_SetPWM(uint8_t pin, uint16_t pwm, bool inverted) {
 
 bool PCA9685_Command(void) 
 {
-  boolean serviced = true;
-  boolean validpin = false;
+  bool serviced = true;
+  bool validpin = false;
   uint8_t paramcount = 0;
   if (XdrvMailbox.data_len > 0) {
     paramcount=1;
@@ -178,9 +178,9 @@ void PCA9685_OutputTelemetry(bool telemetry) {
   }
 }
 
-boolean Xdrv15(byte function)
+bool Xdrv15(uint8_t function)
 {
-  boolean result = false;
+  bool result = false;
 
   if (i2c_flg) {
     switch (function) {
