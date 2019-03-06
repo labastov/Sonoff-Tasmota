@@ -68,10 +68,13 @@ PROGRAM: [====      ]  35.6% (used 373079 bytes from 1048576 bytes)
 #ifdef ROOF
 //#warning "KAMIN configuratung. only DS18b20"
 // подключаем модернизированную мною  библиотеку.
-#define USE_DS18x20_LEGACY // Optional for more than one DS18x20 sensors with dynamic scan using library OneWire
+//#define USE_DS18x20_LEGACY // Optional for more than one DS18x20 sensors with dynamic scan using library OneWire
+// #define USE_DS18x20_LEGACY_2  // -не смог переделать sanoff не поддерживает библиотеку в новых релизах
 //DATA:    [======    ]  60.4% (used 49520 bytes from 81920 bytes) +k224
 //PROGRAM : [== == ] 35.8 % (used 375783 bytes from 1048576 bytes) +2k704
 //#define USE_DS18x20
+#define USE_DS18x20_2 // переделываю на несколько шин.
+
 #define USE_I2C // автоматически она не включается
 #define USE_ADS1115_LVA // для обратной связи приводов, мною доработанный родной дравер
 #define ADS1115_DEVICES_MAX 4 // сколько устройств ищем who many found devices

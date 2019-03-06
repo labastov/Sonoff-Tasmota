@@ -2,7 +2,7 @@
   en-GB.h - localization for English - United Kingdom for Sonoff-Tasmota
 
   Copyright (C) 2018  Theo Arends
-
+UPDATING LVA
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -462,6 +462,12 @@
 #define D_SENSOR_AM2301   "AM2301"
 #define D_SENSOR_SI7021   "SI7021"
 #define D_SENSOR_DS18X20  "DS18x20"
+// <-- LVA
+//#ifdef USE_DS18x20_LEGACY_2
+#define D_SENSOR_DS18X20_2 "DS18x20_2"
+// Second Single wire DS18B20 or DS18S20
+//#endif     // USE_DS18x20_LEGACY_2
+// -> LVA
 #define D_SENSOR_I2C_SCL  "I2C SCL"
 #define D_SENSOR_I2C_SDA  "I2C SDA"
 #define D_SENSOR_WS2812   "WS2812"

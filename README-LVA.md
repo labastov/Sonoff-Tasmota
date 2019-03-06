@@ -286,6 +286,15 @@ sensor33 pwm,13,4096
 sensor33 pwm,14,40
 ```
 
+## USE_DS18x20_LEGACY_2
+
+USE_DS18x20_LEGACY 
+
+
+USE_DS18x20_LEGACY_2 -не смог переделать, переделываю просто USE_DS18x20
+DATA:    [======    ]  61.7% (used 50520 bytes from 81920 bytes)
+PROGRAM: [====      ]  38.1% (used 399791 bytes from 1048576 bytes)
+
 ## FC51 Danfos
 
 Текущая основная проблема, у меня микросхема-драйвер `MAX485`, она требует
@@ -327,6 +336,16 @@ sensor33 pwm,14,40
     версия драйвера предварительная и будет дорабатываться, особенно после
     интеграции с *OpenHub*.
 
+9. Временно приостанавливаю разработку драйвера, от Danfos идут сильные помехи по сети, аж нечитаются датчики температуры DS18B20, надо ставить фильры.
+    (пока отлдадил через OH2 только включачать/выключать выключать привод, SPEED пока в правилах не задействовал в связи с описанной выше проблемой)
+
+Пример вывода MQTT
+
+```md
+tele/Roof/SENSOR {"Time":"2018-11-30T20:43:56","FC1":{"STATUS":"Off","CTW":1084,"STW":515,"MaxFRQ":50,"ReferFRQ":49.80,"FRQ":0.00,"POWER":0,"STWdecode":"Off"},"FC2":{"STATUS":"On","CTW":1084,"STW":3847,"MaxFRQ":50,"ReferFRQ":26.79,"FRQ":26.79,"POWER":40,"STWdecode":"On"},"FC3":{"STATUS":"On","CTW":1084,"STW":3847,"MaxFRQ":50,"ReferFRQ":86.60,"FRQ":86.60,"POWER":132,"STWdecode":"On"}}
+
+```
+
 ### Не подучилось
 
 Не удалось сделать массив структур для хранения данных (можно было бы сэкономить
@@ -358,27 +377,149 @@ sensor94 3 ON
 sensor94 3 OFF
 ```
 
-#### Настройки *Openhub*
+#### Настройки *Openhub2*
 
 ##### items
 
-TBD
+```md
+String FcKitchenStatus    	    "[%s]"	                       (Danfos) {mqtt=">[fms:cmnd/Roof/sensor94:command:*:1,${command}], <[fms:stat/Roof/FC1_STATUS:state:default],<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.STATUS)]" }
+	Number FcKitchenCTW	        "Кух.CTW[%d]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.CTW)]"}
+	Number FcKitchenSTW	        "Кух.STW[%d]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.STW)]"}
+	Number FcKitchenMaxFRQ		"Кух.Макс. Частота [%.1fHz]"   (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.MaxFRQ)]"}
+	Number FcKitchenReferFRQ	"Кух.Задан. Частота [%.1f%%]"  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.ReferFRQ)]"}
+	Number FcKitchenOutFRQ	    "Кух.Текущая Частота [%.1f%%]" (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.FRQ)]"}
+    Number FcKitchenOutPOWER	"Кух.Текущая Мощьность [%.1fW]"(Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.POWER)]"}
+    String FcKitchenSTWdecode	"Кух.STW[%s]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC1.STWdecode)]"}
 
-#### #sitemaps
+String FcBathroomsStatus	    "[%s]"	                       (Danfos) {mqtt=">[fms:cmnd/Roof/sensor94:command:*:2,${command}], <[fms:stat/Roof/FC2_STATUS:state:default],<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.STATUS)]" }
+    Number  FcBathroomsCTW      "C/У.CTW[%d]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.CTW)]"}
+    Number  FcBathroomsSTW      "C/У.STW[%d]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.STW)]"}
+    Number  FcBathroomsMaxFRQ   "C/У.Макс. Частота [%.1fHz]"   (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.MaxFRQ)]"}
+    Number  FcBathroomsReferFRQ "C/У.Задан. Частота [%.1f%%]"  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.ReferFRQ)]"}
+    Number  FcBathroomsOutFRQ   "C/У.Текущая Частота [%.1f%%]" (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.FRQ)]"}
+    Number  FcBathroomsOutPOWER "C/У.Текущая Мощьность [%.1fW]"(Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.POWER)]"}
+    String FcBathroomsSTWdecode "C/У.STW[%s]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC2.STWdecode)]"}
+/*
+*/
+String FcInflowStatus	        "[%s]"	                          (Danfos) {mqtt=">[fms:cmnd/Roof/sensor94:command:*:3,${command}], <[fms:stat/Roof/FC3_STATUS:state:default],<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.STATUS)]" }
+    Number FcInflowCTW          "Приток.CTW[%d]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.CTW)]"}
+    Number FcInflowSTW          "Приток.STW[%d]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.STW)]"}
+    Number FcInflowMaxFRQ       "Приток.Макс. Частота [%.1fHz]"   (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.MaxFRQ)]"}
+    Number FcInflowReferFRQ     "Приток.Задан. Частота [%.1f%%]"  (Danfos) {mqtt=">[fms:cmnd/Roof/sensor94:command:*:3,SPEED,${command}], <[fms:stat/Roof/FC3_SPEED:state:default], <[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.ReferFRQ)]"}
+    Number FcInflowOutFRQ       "Приток.Текущая Частота [%.1f%%]" (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.FRQ)]"}
+    Number FcInflowOutPOWER     "Приток.Текущая Мощьность [%.1fW]"(Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.POWER)]"}
+    String FcInflowSTWdecode    "Приток.STW[%s]"                  (Danfos) {mqtt="<[fms:tele/Roof/SENSOR:state:JSONPATH($.FC3.STWdecode)]"}
+```
 
-TBD
+##### sitemaps
+
+```md
+		Text item=Danfos label="Danfos" 	{
+			Frame label="Кухня Вытяжка" {
+				Switch item=FcKitchenStatus label="Status"
+				Text item=FcKitchenCTW label="CTW"
+				Text item=FcKitchenSTW label="STW"
+				Text item=FcKitchenMaxFRQ label="MaxFRQ"
+				Text item=FcKitchenReferFRQ label="ReferFRQ"
+				Setpoint item=FcKitchenReferFRQ minValue=00 maxValue=10 step=1
+				Text item=FcKitchenOutFRQ label="OutFRQ"
+				Text item=FcKitchenOutPOWER label="OutPOWER"		
+				Text item=FcKitchenSTWdecode label="STWdecode"
+			}
+			Frame label="С/У Вытяжка" {
+				Switch item=FcBathroomsStatus label="Status"
+				Text item=FcBathroomsCTW label="CTW"
+				Text item=FcBathroomsSTW label="STW"
+				Text item=FcBathroomsMaxFRQ label="MaxFRQ"
+				Text item=FcBathroomsReferFRQ label="ReferFRQ"
+				Setpoint item=FcBathroomsReferFRQ minValue=00 maxValue=10 step=1
+				Text item=FcBathroomsOutFRQ label="OutFRQ"
+				Text item=FcBathroomsOutPOWER label="OutPOWER"		
+				Text item=FcBathroomsSTWdecode label="STWdecode"
+			}
+			Frame label="Приток" {
+				Switch item=FcInflowStatus label="Status"
+				Text item=FcInflowCTW label="CTW"
+				Text item=FcInflowSTW label="STW"
+				Text item=FcInflowMaxFRQ label="MaxFRQ"
+				Text item=FcInflowReferFRQ label="ReferFRQ"
+				Setpoint item=FcInflowReferFRQ minValue=00 maxValue=10 step=1
+				Text item=FcInflowOutFRQ label="OutFRQ"
+				Text item=FcInflowOutPOWER label="OutPOWER"		
+				Text item=FcInflowSTWdecode label="STWdecode"
+			}
+		}
+```
+
+##### Rules
+
+```java
+// таймер для костыля
+import org.openhab.model.script.actions.Timer
+import org.joda.time.*
+
+rule "Kamin_Air_Switch"
+
+when
+    Item KaminAirOut changed
+then
+    var  KAO=(KaminAirOut.state as DecimalType) // создаем переменную с этим значением
+
+    if( KAO > 31 && FcInflowStatus.state != ON) //&& ReleyAirInVent.state==0 )
+    {
+        FcInflowStatus.sendCommand(ON)
+        // далее это костыль т.к. при включении вентиляции из-за помех отваливаются датчики температуры
+        if (RULES_Kamin_Air_Switch.state != 1) { 
+            sendCommand(RULES_Kamin_Air_Switch, 1) 
+            Thread::sleep(180 * 1000)
+            FcInflowStatus.sendCommand(OFF)
+            sendCommand(RULES_Kamin_Air_Switch, 0)
+        }
+        // конец костыля
+    }
+
+    if(KAO < 30 && FcInflowStatus.state == ON )
+    {
+        FcInflowStatus.sendCommand(OFF)
+    }
+    if( KAO < 18 && FcInflowStatus.state != OFF )
+    {
+        FcInflowStatus.sendCommand(OFF)
+        sendTelegram( "Fazenda_2018_bot", "Kamin_Air_Switch:  ReleyAirInVent OFF т.к. температура ниже 18 град." )
+    }
+
+    //sendTelegram("Fazenda_2018_bot", "KaminAirOut:" )
+    //sendTelegram("Fazenda_2018_bot", "item KaminAirOut changed to %s and number is %.1f", KaminAirOut.state.toString, KAO)
+    //sendTelegram("Fazenda_2018_bot", "item AirInVent status to %s and number is %d", AirInVent.state.toString, AirInVent.state)
+    /*
+    if(ReleyAirInVent.state == ON) // && AirInVent.state(1) )
+    {
+        sendTelegram("Fazenda_2018_bot", "ReleyAirInVent ON" )
+    }
+    if(ReleyAirInVent.state == OFF) // && AirInVent.state(1) )
+    {
+        sendTelegram("Fazenda_2018_bot", "ReleyAirInVent OFF" )
+    }
+    */
+    //logInfo("Kamin_Air_Switch", "end") 
+end
+```
 
 ### Как делал
 
 #### дергаем ногой
 
-*sonoff_template.h* : 1. в *enum UserSelectablePins* добавляем название
-переменной (`GPIO_MODBUS_TX, GPIO_MODBUS_RX, GPIO_MODBUS_TX_ENABLE`) 2. *const
-char kSensorNames[] PROGMEM* добавляем имя шаблона во ФЛЕШ памяти для
+*sonoff_template.h* : 
+1. в *enum UserSelectablePins* добавляем название переменной (`GPIO_MODBUS_TX, GPIO_MODBUS_RX, GPIO_MODBUS_TX_ENABLE`)
+
+2. *const char kSensorNames[] PROGMEM* добавляем имя шаблона во ФЛЕШ памяти для
 отображаемого наименования пина (`D_SENSOR_MODBUS_TX "|" D_SENSOR_MODBUS_RX "|"
-D_SENSOR_MODBUS_TX_ENABLE "|"`) 3. *const uint8_t kGpioNiceList[GPIO_SENSOR_END]
-PROGMEM* добавляем название переменной (`GPIO_MODBUS_TX, GPIO_MODBUS_RX,
-GPIO_MODBUS_TX_ENABLE`) 4. в языковом файле объявляем шаблон:
+D_SENSOR_MODBUS_TX_ENABLE "|"`)
+
+3. *const uint8_t kGpioNiceList[GPIO_SENSOR_END] PROGMEM* добавляем название переменной (`GPIO_MODBUS_TX, GPIO_MODBUS_RX,
+GPIO_MODBUS_TX_ENABLE`)
+
+4. в языковом файле объявляем шаблон:
 
 ```cpp
 #define D_SENSOR_MODBUS_TX "MODBUS Tx"
