@@ -2,7 +2,7 @@
   xdrv_01_webserver.ino - webserver for Sonoff-Tasmota
 
   Copyright (C) 2019  Theo Arends
-
+// LVA EDIT
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -80,8 +80,11 @@ const char HTTP_SCRIPT_ROOT[] PROGMEM =
     "x=new XMLHttpRequest();"
     "x.onreadystatechange=function(){"
       "if(x.readyState==4&&x.status==200){"
-        "var s=x.responseText.replace(/{t}/g,\"<table style='width:100%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%'><div style='text-align:center;font-weight:\");"
-        "eb('l1').innerHTML=s;"
+    // LVA EDIT
+    //"var s=x.responseText.replace(/{t}/g,\"<table style='width:100%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%'><div style='text-align:center;font-weight:\");"
+    "var s=x.responseText.replace(/{t}/g,\"<table style='width:100%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{mr}/g,\"</th><td bgcolor=OrangeRed>\").replace(/{mg}/g,\"</th><td bgcolor=Lime>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%'><div style='text-align:center;font-weight:\");"
+    // END LVA 
+    "eb('l1').innerHTML=s;"
       "}"
     "};"
     "x.open('GET','.?m=1'+a,true);"       // ?m related to WebServer->hasArg("m")

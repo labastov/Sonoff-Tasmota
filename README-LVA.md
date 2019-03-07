@@ -586,3 +586,9 @@ AddLog(LOG_LEVEL_INFO);
 ### Изменения
 
 попытка обновится до последнего релиза 6.4.1
+
+вставлено
+sonoff.ino
+lva_post.h
+my_user_config.h
+

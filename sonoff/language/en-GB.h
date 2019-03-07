@@ -1,8 +1,8 @@
 /*
   en-GB.h - localization for English - United Kingdom for Sonoff-Tasmota
 
-  Copyright (C) 2019  Theo Arends
-
+  Copyright (C) 2018  Theo Arends
+UPDATING LVA
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -577,6 +577,13 @@
 #define D_SENSOR_RXD           "Serial Rx"
 #define D_SENSOR_ROTARY        "Rotary"     // Suffix "1A"
 
+
+// <-- LVA
+//#ifdef USE_DS18x20_2
+#define D_SENSOR_DS18X20_2 "DS18x20_2"
+// Second Single wire DS18B20 or DS18S20
+//#endif     // USE_DS18x20_2
+// -> LVA
 // Units
 #define D_UNIT_AMPERE "A"
 #define D_UNIT_CENTIMETER "cm"

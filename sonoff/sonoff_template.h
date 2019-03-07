@@ -1,6 +1,6 @@
 /*
   sonoff_template.h - template settings for Sonoff-Tasmota
-
+UPDATE LVA
   Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
@@ -29,6 +29,12 @@ enum UserSelectablePins {
   GPIO_DHT22,          // DHT21, DHT22, AM2301, AM2302, AM2321
   GPIO_SI7021,         // iTead SI7021
   GPIO_DSB,            // Single wire DS18B20 or DS18S20
+   // <-- LVA
+//#ifdef USE_DS18x20_LEGACY_2
+   GPIO_DSB2, // Second Single wire DS18B20 or DS18S20
+//#endif // USE_DS18x20_LEGACY_2
+   // -> LVA
+
   GPIO_I2C_SCL,        // I2C SCL
   GPIO_I2C_SDA,        // I2C SDA
   GPIO_WS2812,         // WS2812 Led string
@@ -101,6 +107,13 @@ enum UserSelectablePins {
   GPIO_SR04_ECHO,      // SR04 Echo pin
   GPIO_SDM120_TX,      // SDM120 Serial interface
   GPIO_SDM120_RX,      // SDM120 Serial interface
+// <-- LVA
+#ifdef USE_MODBUS
+   GPIO_MODBUS_TX,        //  MODBUS Serial interface
+   GPIO_MODBUS_RX,        //  MODBUS Serial interface
+   GPIO_MODBUS_TX_ENABLE, //  MODBUS Serial interface start and end transmit
+#endif                   // USE_MODBUS
+   // -> LVA
   GPIO_SDM630_TX,      // SDM630 Serial interface
   GPIO_SDM630_RX,      // SDM630 Serial interface
   GPIO_TM16CLK,        // TM1638 Clock
@@ -190,10 +203,12 @@ enum ProgramSelectablePins {
   GPIO_MAX };
 
 // Text in webpage Module Parameters and commands GPIOS and GPIO
+// LVA Edit bellow
+// D_SENSOR_DS18X20_2 and D_SENSOR_MODBUS_TX
 const char kSensorNames[] PROGMEM =
   D_SENSOR_NONE "|"
   D_SENSOR_DHT11 "|" D_SENSOR_AM2301 "|" D_SENSOR_SI7021 "|"
-  D_SENSOR_DS18X20 "|"
+  D_SENSOR_DS18X20 "|" D_SENSOR_DS18X20_2 "|"
   D_SENSOR_I2C_SCL "|" D_SENSOR_I2C_SDA "|"
   D_SENSOR_WS2812 "|"
   D_SENSOR_IRSEND "|"
@@ -215,6 +230,11 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_SBR_TX "|" D_SENSOR_SBR_RX "|"
   D_SENSOR_SR04_TRIG "|" D_SENSOR_SR04_ECHO "|"
   D_SENSOR_SDM120_TX "|" D_SENSOR_SDM120_RX "|"
+//  <-- LVA
+#ifdef USE_MODBUS
+  D_SENSOR_MODBUS_TX "|" D_SENSOR_MODBUS_RX "|" D_SENSOR_MODBUS_TX_ENABLE "|"
+#endif  
+//  --> LVA
   D_SENSOR_SDM630_TX "|" D_SENSOR_SDM630_RX "|"
   D_SENSOR_TM1638_CLK "|" D_SENSOR_TM1638_DIO "|" D_SENSOR_TM1638_STB "|"
   D_SENSOR_SWITCH "1n|" D_SENSOR_SWITCH "2n|" D_SENSOR_SWITCH "3n|" D_SENSOR_SWITCH "4n|" D_SENSOR_SWITCH "5n|" D_SENSOR_SWITCH "6n|" D_SENSOR_SWITCH "7n|" D_SENSOR_SWITCH "8n|"
@@ -464,6 +484,12 @@ const uint8_t kGpioNiceList[] PROGMEM = {
   GPIO_DHT22,          // DHT21, DHT22, AM2301, AM2302, AM2321
   GPIO_SI7021,         // iTead SI7021
   GPIO_DSB,            // Single wire DS18B20 or DS18S20
+
+  // <-- LVA
+#ifdef USE_DS18x20_LEGACY_2
+  GPIO_DSB2,            // Second Single wire DS18B20 or DS18S20
+#endif                     // USE_MODBUS
+  // -> LVA
 #ifdef USE_WS2812
   GPIO_WS2812,         // WS2812 Led string
 #endif
@@ -544,6 +570,13 @@ const uint8_t kGpioNiceList[] PROGMEM = {
   GPIO_SDS0X1_RX,      // Nova Fitness SDS011 Serial interface
 #endif
 #ifdef USE_PMS5003
+// <-- LVA
+#ifdef USE_MODBUS
+  GPIO_MODBUS_TX,        //  MODBUS Serial interface
+  GPIO_MODBUS_RX,        //  MODBUS Serial interface
+  GPIO_MODBUS_TX_ENABLE, //  MODBUS Serial interface start and end transmit
+#endif                     // USE_MODBUS
+// -> LVA
   GPIO_PMS5003,        // Plantower PMS5003 Serial interface
 #endif
 #ifdef USE_TX20_WIND_SENSOR
